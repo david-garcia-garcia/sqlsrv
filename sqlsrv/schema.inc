@@ -17,6 +17,10 @@ class DatabaseSchema_sqlsrv extends DatabaseSchema {
   // Override to take into account the
   // default schema for MS SQL.
   public function __construct($connection) {
+    global $conf;
+    if (isset($conf['MSSQL_USE_LEGACY_COLLATIONS']) && $conf['MSSQL_USE_LEGACY_COLLATIONS'] === TRUE) {
+      $this->use_legacy_collations = TRUE;
+    }
     $this->LoadDefaultSchema($connection);
     parent::__construct($connection);
   }
@@ -51,6 +55,11 @@ class DatabaseSchema_sqlsrv extends DatabaseSchema {
   var $COMPUTED_PK_COLUMN_NAME = '__pkc';
   var $COMPUTED_PK_COLUMN_INDEX = '__ix_pkc';
   var $TECHNICAL_PK_COLUMN_NAME = '__pk';
+
+  // In the old driver implementation, column collation
+  // was never dealt with, and database default's were
+  // used in all cases.
+  protected $use_legacy_collations = FALSE;
 
   /**
    * Returns a list of functions that are not
@@ -816,7 +825,7 @@ EOF
 
     // Collation only makes sense for text fields
     // Detect target collation
-    if ($field['sqlsrv_is_text'] && !isset($field['sqlsrv_collation'])) {
+    if ($this->use_legacy_collations == FALSE && $field['sqlsrv_is_text'] && !isset($field['sqlsrv_collation'])) {
       if (!empty($field['collation'])) {
         // Try to match to an SQL Server collation
         switch($field['collation']) {
@@ -856,7 +865,7 @@ EOF
 
     }
 
-    
+
 
     return $field;
   }
