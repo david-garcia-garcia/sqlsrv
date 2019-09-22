@@ -45,6 +45,9 @@ class Upsert extends QueryUpsert {
     // Build the query, ensure that we have retries for concurrency control
     $options['integrityretry'] = TRUE;
     $options['prefix_tables'] = FALSE;
+    if (count($this->insertValues) >= 2000) {
+      $options['insecure'] = TRUE;
+    }
     $stmt = $this->connection->prepareQuery((string) $this, $options);
     // 3. Bind the dataset.
     foreach ($this->insertValues as $insert_values) {
