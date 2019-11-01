@@ -56,4 +56,4 @@ test_script:
   - cmd: cd /d C:\projects\drupal-project
   - cmd: mkdir c:\testresults\
   - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://www.mysite.com/" --xml c:\testresults\ "Common" --class Drupal\sqlsrv\Tests\SchemaTest
-    cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://www.mysite.com/" --xml c:\testresults\ "Common" --class Drupal\sqlsrv\Tests\SelectQueryTest
+  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://www.mysite.com/" --xml c:\testresults\ "Common" --class Drupal\sqlsrv\Tests\SelectQueryTest
