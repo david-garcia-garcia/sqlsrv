@@ -12,13 +12,13 @@ install:
   - cmd: net start MSSQL$SQL2014
   - ps: Set-Service 'SQLAgent$SQL2014' -StartupType Manual
   - ps: Start-Service W3SVC
-  - ps: choco install php -y
-  - ps: choco install urlrewrite -y
-  - ps: choco install OpenSSL.Light -y
+  - ps: choco install php -y --no-progress
+  - ps: choco install urlrewrite -y --no-progress
+  - ps: choco install OpenSSL.Light -y --no-progress
   - ps: |
       $WorkingDir = Convert-Path .
       $ZipPath = Join-Path $WorkingDir '\chef_cmdlet.zip'
-      New-Object Net.WebClient).DownloadFile('https://ci.appveyor.com/api/projects/David19767/iischef/artifacts/iischef.cmdlet.zip?branch=1.x', $ZipPath)
+      (New-Object Net.WebClient).DownloadFile('https://ci.appveyor.com/api/projects/David19767/iischef/artifacts/iischef.cmdlet.zip?branch=1.x', $ZipPath)
       $DESTINATION= Join-Path $env:ProgramFiles "\WindowsPowerShell\Modules\Chef"
       New-Item -ItemType directory -Force -Path $DESTINATION
       (new-object -com shell.application).namespace($DESTINATION).CopyHere((new-object -com shell.application).namespace($ZipPath).Items(),16)
