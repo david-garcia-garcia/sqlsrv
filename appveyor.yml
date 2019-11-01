@@ -21,7 +21,7 @@ install:
       New-Object Net.WebClient).DownloadFile('https://ci.appveyor.com/api/projects/David19767/iischef/artifacts/iischef.cmdlet.zip?branch=1.x', $ZipPath)
       $DESTINATION= Join-Path $env:ProgramFiles "\WindowsPowerShell\Modules\Chef"
       New-Item -ItemType directory -Force -Path $DESTINATION
-     (new-object -com shell.application).namespace($DESTINATION).CopyHere((new-object -com shell.application).namespace($ZipPath).Items(),16)
+      (new-object -com shell.application).namespace($DESTINATION).CopyHere((new-object -com shell.application).namespace($ZipPath).Items(),16)
       Remove-Item $ZipPath
   - ps: $Env:Path = $Env:Path + ";C:\Program Files\OpenSSL";
   - cmd: sc config wuauserv start= auto
