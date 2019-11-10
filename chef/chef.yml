@@ -14,7 +14,7 @@ deployers:
     mounts:
       root: { root: true, path: '/web' }
     bindings:
-      public: { hostname: 'sqlsrv.drupal.org', port: 80, interface: 'public' }
+      public: { hostname: 'sqlsrv.drupal.org', port: 80, interface: 'local', addtohosts: true }
   php:
     type: 'php'
     runtime:
