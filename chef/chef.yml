@@ -123,8 +123,8 @@ services:
         path: 'private'
       temp:
         path: 'temporary'
-  default:
-    type: 'sqlsrv'
+#  default:
+#    type: 'sqlsrv'
   couchbase:
     type: 'couchbase'
   cron:
