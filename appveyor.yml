@@ -41,6 +41,7 @@ install:
         $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
       }
   - cmd: SET PATH=C:\ProgramData\ComposerSetup\bin;%PATH%
+  - cmd: cd C:/Users/appveyor/AppData/Roaming/Composer
   - ps: composer global require hirak/prestissimo
   - cmd: IF NOT EXIST C:\projects\drupal-project composer create-project -n drupal-composer/drupal-project:8.x-dev
   - cmd: cd /d C:\projects\drupal-project
