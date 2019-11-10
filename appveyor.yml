@@ -12,8 +12,8 @@ install:
   - ps: $Env:APPVEYOR_REPO_COMMIT_MESSAGE_FULL = "$env:APPVEYOR_REPO_COMMIT_MESSAGE $env:APPVEYOR_REPO_COMMIT_MESSAGE_EXTENDED".TrimEnd();
   - cmd: mkdir c:\testlogs
   - cmd: net start MSSQL$SQL2017
-  - ps: Set-Service 'SQLAgent$SQL2017' -StartupType Manual
-  - ps: Start-Service W3SVC
+  - ps: Set-Service 'SQLAgent$SQL2017' -StartupType Manual | out-null
+  - ps: Start-Service W3SVC | out-null
   - ps: choco install php -y --no-progress 2>&1 > C:\TestLogs\choco_install_php.txt
   - ps: choco install urlrewrite -y --no-progress 2>&1 > C:\TestLogs\choco_install_urlrewrite.txt
   - ps: choco install OpenSSL.Light -y --no-progress 2>&1 > C:\TestLogs\choco_install_openssl.txt
@@ -42,12 +42,12 @@ install:
   - cmd: choco install composer -y --no-progress
   - ps: refreshenv
   - cmd: SET PATH=C:\ProgramData\ComposerSetup\bin;%PATH%
-  - cmd: cd C:/Users/appveyor/AppData/Roaming/Composer
   - ps: |
       If ($Env:APPVEYOR_REPO_COMMIT_MESSAGE_FULL -imatch 'rdpcomposer') {
         $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
       }
   - cmd: composer global require hirak/prestissimo
+  - cmd: cd /d c:\projects
   - cmd: IF NOT EXIST C:\projects\drupal-project composer create-project -n drupal-composer/drupal-project:8.x-dev
   - cmd: cd /d C:\projects\drupal-project
   - cmd: composer config repositories.drupal composer https://packages.drupal.org/8
