@@ -36,13 +36,13 @@ install:
   - cmd: cd /d C:\composer
   - cmd: choco install composer -y --no-progress
   - ps: refreshenv
+  - cmd: SET PATH=C:\ProgramData\ComposerSetup\bin;%PATH%
+  - cmd: cd C:/Users/appveyor/AppData/Roaming/Composer
   - ps: |
       If ($Env:APPVEYOR_REPO_COMMIT_MESSAGE_FULL -imatch 'rdpcomposer') {
         $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
       }
-  - cmd: SET PATH=C:\ProgramData\ComposerSetup\bin;%PATH%
-  - cmd: cd C:/Users/appveyor/AppData/Roaming/Composer
-  - ps: composer global require hirak/prestissimo
+  - cmd: composer global require hirak/prestissimo
   - cmd: IF NOT EXIST C:\projects\drupal-project composer create-project -n drupal-composer/drupal-project:8.x-dev
   - cmd: cd /d C:\projects\drupal-project
   - cmd: composer config repositories.drupal composer https://packages.drupal.org/8
