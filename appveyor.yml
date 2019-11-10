@@ -29,6 +29,7 @@ install:
   - cmd: net start wuauserv
   - ps: new-item c:\composer -itemtype directory
   - ps: $Env:Path = "C:\tools\php73;" + $Env:Path;
+  - ps: Add-Content C:\tools\php73\php.ini "extension_dir=ext `n"
   - ps: Add-Content C:\tools\php73\php.ini "extension=php_openssl `n"
   - ps: Add-Content C:\tools\php73\php.ini "extension=php_mbstring `n"
   - ps: Add-Content C:\tools\php73\php.ini "extension=php_curl `n"
