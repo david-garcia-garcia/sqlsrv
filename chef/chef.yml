@@ -125,8 +125,8 @@ services:
         path: 'temporary'
 #  default:
 #    type: 'sqlsrv'
-  couchbase:
-    type: 'couchbase'
+#  couchbase:
+#    type: 'couchbase'
   cron:
     type: 'scheduler'
     command: '& ".\drupal" "cron:execute"'
