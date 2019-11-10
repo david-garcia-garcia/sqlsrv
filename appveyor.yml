@@ -33,6 +33,7 @@ install:
   - ps: Add-Content C:\tools\php73\php.ini "extension=php_openssl `n"
   - ps: Add-Content C:\tools\php73\php.ini "extension=php_mbstring `n"
   - ps: Add-Content C:\tools\php73\php.ini "extension=php_curl `n"
+  - ps: Add-Content C:\tools\php73\php.ini "extension=php_gd2.dll `n"
   - cmd: cd /d C:\composer
   - cmd: choco install composer -y --no-progress
   - ps: refreshenv
