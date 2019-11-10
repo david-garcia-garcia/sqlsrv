@@ -66,11 +66,15 @@ install:
       "php $cwd\vendor\drupal\console\bin\drupal " + $([char]37) + "*" | Out-File $cwd/web/drupal.bat -Encoding ASCII
   - cmd: cd /d C:\projects\drupal-project\web
   - cmd: xcopy "%APPVEYOR_BUILD_FOLDER%\chef" "C:\projects\drupal-project\chef" /r /s /i
-  - ps: Invoke-ChefSelfInstall
+  - ps: Invoke-ChefSelfInstall -Path "c:\chef"
   - ps: Invoke-ChefAppDeployPath "C:\projects\drupal-project" drupal -Install
-  - ps: $site = Invoke-ChefAppFind "drupal"
+  - ps: $site = Invoke-ChefAppGetDeployment drupal
+  - ps: $Env:DATABASENAME = $site.DeploymentActive.GetRuntimeSetting("services.default.database", "");
+  - ps: $Env:DATABASEPASSWORD = $site.DeploymentActive.GetRuntimeSetting("services.default.password", "");
+  - ps: $Env:DATABASEUSER = $site.DeploymentActive.GetRuntimeSetting("services.default.username", "");
+  - ps: $Env:DATABASEHOST = $site.DeploymentActive.GetRuntimeSetting("services.default.host", "");
   - cmd: drupal about
-  - cmd: drupal site:install standard --langcode="en" --db-type="sqlsrv" --db-host="localhost\SQL2017" --db-name="mydrupalsite" --db-user="sa" --db-pass="Password12!" --db-port="1433" --site-name="SQL Server Drupal Site" --site-mail="admin@example.com" --account-name="admin" --account-mail="admin@example.com" --account-pass="admin" --no-interaction
+  - cmd: drupal site:install standard --langcode="en" --db-type="sqlsrv" --db-host="%DATABASEHOST%" --db-name="%DATABASENAME%" --db-user="%DATABASEUSER%" --db-pass="%DATABASEPASSWORD%" --db-port="1433" --site-name="SQL Server Drupal Site" --site-mail="admin@example.com" --account-name="admin" --account-mail="admin@example.com" --account-pass="admin" --no-interaction
   - cmd: cd /d C:\projects\drupal-project
   - ps: (New-Object Net.WebClient).DownloadFile('https://www.drupal.org/files/issues/use_the_php_binary-2748883-15.patch','%cd%\patch.patch')
   - cmd: git apply patch.patch --directory=web
