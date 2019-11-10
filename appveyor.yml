@@ -2,17 +2,17 @@ skip_tags: true
 init:
   - ps: ''
 services:
-  - mssql2014
+  - mssql2017
   - iis
 hosts:
   www.mydrupalsite.com: 127.0.0.1
 image:
-  - Visual Studio 2017
+  - Visual Studio 2019
 install:
   - ps: $Env:APPVEYOR_REPO_COMMIT_MESSAGE_FULL = "$env:APPVEYOR_REPO_COMMIT_MESSAGE $env:APPVEYOR_REPO_COMMIT_MESSAGE_EXTENDED".TrimEnd();
   - cmd: mkdir c:\testlogs
-  - cmd: net start MSSQL$SQL2014
-  - ps: Set-Service 'SQLAgent$SQL2014' -StartupType Manual
+  - cmd: net start MSSQL$SQL2017
+  - ps: Set-Service 'SQLAgent$SQL2017' -StartupType Manual
   - ps: Start-Service W3SVC
   - ps: choco install php -y --no-progress 2>&1 > C:\TestLogs\choco_install_php.txt
   - ps: choco install urlrewrite -y --no-progress 2>&1 > C:\TestLogs\choco_install_urlrewrite.txt
@@ -28,7 +28,7 @@ install:
   - ps: $Env:Path = "C:\Program Files\OpenSSL;" + $Env:Path;
   - cmd: sc config wuauserv start= auto
   - cmd: net start wuauserv
-  - ps: (New-Object Net.WebClient).DownloadFile('http://curl.haxx.se/ca/cacert.pe', 'C:\tools\php73\cacert.pem')
+  - ps: (New-Object Net.WebClient).DownloadFile('http://curl.haxx.se/ca/cacert.pem', 'C:\tools\php73\cacert.pem')
   - ps: new-item c:\composer -itemtype directory
   - ps: $Env:Path = "C:\tools\php73;" + $Env:Path;
   - ps: Add-Content C:\tools\php73\php.ini "extension_dir=ext `n"
