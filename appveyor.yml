@@ -73,6 +73,8 @@ install:
   - ps: $Env:DATABASEPASSWORD = $site.DeploymentActive.GetRuntimeSetting("services.default.password", "");
   - ps: $Env:DATABASEUSER = $site.DeploymentActive.GetRuntimeSetting("services.default.username", "");
   - ps: $Env:DATABASEHOST = $site.DeploymentActive.GetRuntimeSetting("services.default.host", "");
+  - ps: $Env:SITERUNTIMEPATH = $site.DeploymentActive.runtimePath;
+  - cmd: set path=%SITERUNTIMEPATH%;%path%
   - cmd: drupal about
   - cmd: drupal site:install standard --langcode="en" --db-type="sqlsrv" --db-host="localhost\SQL2017" --db-name="mydrupalsite" --db-user="sa" --db-pass="Password12!" --db-port="1433" --site-name="SQL Server Drupal Site" --site-mail="admin@example.com" --account-name="admin" --account-mail="admin@example.com" --account-pass="admin" --no-interaction
   - cmd: cd /d C:\projects\drupal-project
