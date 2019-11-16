@@ -74,7 +74,8 @@ install:
   - ps: $Env:DATABASEUSER = $site.DeploymentActive.GetRuntimeSetting("services.default.username", "");
   - ps: $Env:DATABASEHOST = $site.DeploymentActive.GetRuntimeSetting("services.default.host", "");
   - ps: $Env:SITERUNTIMEPATH = $site.DeploymentActive.runtimePath;
-  - cmd: set path=%SITERUNTIMEPATH%;%path%
+  # Make the site's PHP environment the default PHP environment
+  - cmd: set path=%SITERUNTIMEPATH%\php;%path%
   - cmd: drupal about
   - ps: |
       If ($Env:APPVEYOR_REPO_COMMIT_MESSAGE_FULL -imatch 'rdpinstall') {
