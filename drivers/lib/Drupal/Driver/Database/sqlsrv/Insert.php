@@ -83,7 +83,7 @@ class Insert extends QueryInsert {
 
       // Handle the case of SELECT-based INSERT queries first.
       $arguments = $this->fromQuery->getArguments();
-      DatabaseUtils::BindArguments($stmt, $arguments);
+      $stmt->BindArguments($arguments);
 
       // Run the query
       $this->connection->query($stmt, [], $options);
