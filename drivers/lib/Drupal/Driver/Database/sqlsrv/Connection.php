@@ -539,9 +539,12 @@ class Connection extends DatabaseConnection {
       if (substr($e->getCode(), -6, -3) == '23') {
         $exception = new IntegrityConstraintViolationException($message, $e->getCode(), $e);
       }
-      else if ($e->getCode() == '42S02') {
-        $exception = new SchemaObjectDoesNotExistException($e->getMessage(), 0, $e);
-      }
+      // SchemaObjectDoesNotExistException is more of an exception
+      // that is manually thrown by the drupal schema API, not intended
+      // to be propagated from the database layer
+      // else if ($e->getCode() == '42S02') {
+      //   $exception = new SchemaObjectDoesNotExistException($e->getMessage(), 0, $e);
+      // }
       else {
         $exception = new DatabaseExceptionWrapper($message, 0, $e);
       }
