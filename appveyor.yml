@@ -88,8 +88,6 @@ install:
   - ps: $Env:CWD = (Get-Location).path;
   - ps: (New-Object Net.WebClient).DownloadFile('https://www.drupal.org/files/issues/use_the_php_binary-2748883-15.patch',"$Env:CWD\patch.patch")
   - cmd: git apply patch.patch --directory=web
-  - ps: (New-Object Net.WebClient).DownloadFile('https://www.drupal.org/files/issues/simpletest_is_broken_on-2605284-107.patch',"$Env:CWD\patch.patch") 
-  - cmd: git apply patch.patch --directory=web
   - cmd: cd /d C:\projects\drupal-project\web
   - cmd: drupal module:install simpletest
   - ps: wget http://sqlsrv.drupal.org/"
