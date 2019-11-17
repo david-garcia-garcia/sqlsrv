@@ -90,7 +90,7 @@ install:
   - cmd: git apply patch.patch --directory=web
   - cmd: cd /d C:\projects\drupal-project\web
   - cmd: drupal module:install simpletest
-  - ps: wget http://sqlsrv.drupal.org/"
+  - ps: wget "http://sqlsrv.drupal.org/"
 test_script:
   - cmd: cd /d C:\projects\drupal-project
   - cmd: mkdir c:\testresults\
