@@ -58,7 +58,9 @@ install:
   - cmd: composer config repositories.drupal composer https://packages.drupal.org/8
   - cmd: composer update drupal/core 8.3@dev
   - cmd: composer require drupal/sqlsrv:dev-2.x@dev
-  - cmd: xcopy /S /I /E /Y %cd%\web\modules\contrib\sqlsrv\drivers %cd%\web\drivers
+  # - cmd: xcopy /S /I /E /Y %cd%\web\modules\contrib\sqlsrv\drivers %cd%\web\drivers
+  # Copy files from the local package instead of the repo...
+  - cmd: xcopy /S /I /E /Y %APPVEYOR_BUILD_FOLDER%\drivers %cd%\web\drivers
   - cmd: composer config repositories.1 git https://%GITLABUSERNAME%:%GITLABPASSWORD%@gitlab.com/david-garcia-garcia/mssql.git
   - cmd: composer require david/mssql
   - ps: |
