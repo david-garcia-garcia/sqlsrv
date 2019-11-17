@@ -51,6 +51,7 @@ deployers:
       - {type: 'ini', multivalue: true, 'key':extension, 'value':php_com_dotnet.dll}
       - {type: 'ini', multivalue: true, 'key':extension, 'value':php_openssl.dll}
       - {type: 'ini', multivalue: true, 'key':zend_extension, 'value':php_opcache.dll}
+      - {type: 'ini', 'key':disable_functions, 'value':'exec,passthru,show_source'}
  # SQLSERVER
       - {type: 'ini', 'key':pdo_sqlsrv.client_buffer_max_kb_size, 'value':24480}
  # XDEBUG
