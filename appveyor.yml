@@ -91,6 +91,8 @@ install:
   - cmd: cd /d C:\projects\drupal-project\web
   - cmd: drupal module:install simpletest
   - ps: wget "http://sqlsrv.drupal.org/"
+build_script:
+  - cmd: echo "No build"
 test_script:
   - cmd: cd /d C:\projects\drupal-project
   - cmd: mkdir c:\testresults\
