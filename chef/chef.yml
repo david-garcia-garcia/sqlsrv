@@ -18,11 +18,11 @@ deployers:
   php:
     type: 'php'
     runtime:
-      - {type: 'dl', uri: 'http://windows.php.net/downloads/releases/archives/php-7.1.4-nts-Win32-VC14-x64.zip', maps: {'*' : 'php/'}}
+      - {type: 'dl', uri: 'http://windows.php.net/downloads/releases/archives/php-7.1.30-nts-Win32-VC14-x64.zip', maps: {'*' : 'php/'}}
       - {type: 'dl', uri: 'http://windows.php.net/downloads/pecl/releases/xdebug/2.5.3/php_xdebug-2.5.3-7.1-nts-vc14-x64.zip', maps: {'php_xdebug.dll':'php/ext/php_xdebug.dll'}}
       - {type: 'dl', uri: 'http://windows.php.net/downloads/pecl/releases/igbinary/2.0.1/php_igbinary-2.0.1-7.1-nts-vc14-x64.zip', maps: {'php_igbinary.dll': 'php/ext/php_igbinary.dll'}}
       - {type: 'dl', uri: 'http://windows.php.net/downloads/pecl/releases/couchbase/2.3.2/php_couchbase-2.3.2-7.1-nts-vc14-x64.zip', maps: {'php_couchbase.dll':'php/ext/php_couchbase.dll', 'libcouchbase.dll':'php/libcouchbase.dll'}}
-      - {type: 'dl', uri: 'http://windows.php.net/downloads/pecl/releases/pdo_sqlsrv/4.1.9preview/php_pdo_sqlsrv-4.1.9preview-7.1-nts-vc14-x64.zip', maps: {'php_pdo_sqlsrv.dll': 'php/ext/php_pdo_sqlsrv.dll'}}
+      - {type: 'dl', uri: 'https://windows.php.net/downloads/pecl/releases/pdo_sqlsrv/5.6.1/php_pdo_sqlsrv-5.6.1-7.1-nts-vc14-x64.zip', maps: {'php_pdo_sqlsrv.dll': 'php/ext/php_pdo_sqlsrv.dll'}}
       - {type: 'dl', uri: 'http://windows.php.net/downloads/pecl/releases/wincache/2.0.0.8/php_wincache-2.0.0.8-7.1-nts-vc14-x64.zip', maps: {'php_wincache.dll': 'php/ext/php_wincache.dll'}}
  # CERTIFICATES
       - {type: 'dl', uri: 'http://curl.haxx.se/ca/cacert.pem', maps: {'cacert.pem': '/cacert.pem'}}
@@ -48,7 +48,6 @@ deployers:
       - {type: 'ini', multivalue: true, 'key':extension, 'value':php_pdo_sqlsrv.dll}
       - {type: 'ini', multivalue: true, 'key':extension, 'value':php_igbinary.dll}
       - {type: 'ini', multivalue: true, 'key':extension, 'value':php_couchbase.dll}
-      - {type: 'ini', multivalue: true, 'key':extension, 'value':php_tideways.dll}
       - {type: 'ini', multivalue: true, 'key':extension, 'value':php_com_dotnet.dll}
       - {type: 'ini', multivalue: true, 'key':extension, 'value':php_openssl.dll}
       - {type: 'ini', multivalue: true, 'key':zend_extension, 'value':php_opcache.dll}
@@ -83,12 +82,6 @@ deployers:
       - {type: 'ini', 'key':wincache.reroute_enabled , 'value': 0}
       - {type: 'ini', 'key':wincache.filemapdir , 'value':'%RUNTIME%/wincache_filemap', ensureDir: 'dir'}
       - {type: 'ini', 'key':wincache.enablecli , 'value':'On'}
-# TIDEWAYS
-      - {type: 'ini','key':tideways.api_key , 'value': 'xxxxx'}
-      - {type: 'ini','key':tideways.auto_prepend_library , 'value': 0}
-      - {type: 'ini','key':tideways.connection , 'value': 'tcp://127.0.0.1:8136'}
-      - {type: 'ini','key':tideways.sample_rate , 'value': 10}
-      - {type: 'ini','key':tideways.auto_start , 'value': 0}
 # GENERIC
       - {type: 'ini','key':fastcgi.impersonate , 'value': 1}
       - {type: 'ini','key':cgi.fix_pathinfo , 'value': 1}
@@ -106,9 +99,9 @@ deployers:
       - {type: 'ini','key':opcache.enable , 'value': 1}
       - {type: 'ini','key':opcache.memory_consumption , 'value': 256}
       - {type: 'ini','key':opcache.max_accelerated_files , 'value': 25000}
-      - {type: 'ini','key':opcache.revalidate_freq , 'value': 3600}
+      - {type: 'ini','key':opcache.revalidate_freq , 'value': 2}
       - {type: 'ini','key':opcache.interned_strings_buffer , 'value': 16}
-      - {type: 'ini','key':opcache.validate_timestamps , 'value': 0}
+      - {type: 'ini','key':opcache.validate_timestamps , 'value': 1}
       - {type: 'ini','key':opcache.enable_cli , 'value': 1}
       - {type: 'ini','key':opcache.file_cache_only , 'value': 0}
       - {type: 'ini','key':opcache.file_cache , 'value':'%RUNTIME%/opcache_filecache', ensureDir: 'dir'}
