@@ -78,6 +78,13 @@ class Schema extends DatabaseSchema {
   var $TECHNICAL_PK_COLUMN_NAME = '__pk';
 
   /**
+   * Version information for the SQL Server engine.
+   *
+   * @var array
+   */
+  protected $engineVersion;
+  
+  /**
    * Returns a list of functions that are not
    * available by default on SQL Server, but used
    * in Drupal Core or contributed modules
@@ -405,23 +412,28 @@ class Schema extends DatabaseSchema {
 
   /**
    * Retrieve Engine Version information.
+   *
+   * @return array
+   *   Engine version.
    */
-  public function EngineVersion() {
-    $version = $this->connection
-    ->query_direct(<<< EOF
-    SELECT CONVERT (varchar,SERVERPROPERTY('productversion')) AS VERSION,
-    CONVERT (varchar,SERVERPROPERTY('productlevel')) AS LEVEL,
-    CONVERT (varchar,SERVERPROPERTY('edition')) AS EDITION
+  public function engineVersion() {
+    if (!isset($this->engineVersion)) {
+      $this->engineVersion = $this->connection
+        ->queryDirect(<<< EOF
+          SELECT CONVERT (varchar,SERVERPROPERTY('productversion')) AS VERSION,
+          CONVERT (varchar,SERVERPROPERTY('productlevel')) AS LEVEL,
+          CONVERT (varchar,SERVERPROPERTY('edition')) AS EDITION
 EOF
-    )->fetchAssoc();
-    return $version;
+        )->fetchAssoc();
+    }
+    return $this->engineVersion;
   }
 
   /**
    * Retrieve Major Engine Version Number as integer.
    */
-  public function EngineVersionNumber() {
-    $version = $this->EngineVersion();
+  public function engineVersionNumber() {
+    $version = $this->engineVersion();
     $start = strpos($version['VERSION'], '.');
     return intval(substr($version['VERSION'], 0, $start));
   }
