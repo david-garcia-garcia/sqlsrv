@@ -115,13 +115,13 @@ class Connection extends DatabaseConnection {
   /**
    * {@inheritdoc}
    */
-  public static function open(array &$connection_options = array()) {
+  public static function open(array &$connection_options = []) {
 
     // Get driver settings.
-    $driver_settings = DriverSettings::instanceFromSettings();
+    $driverSettings = DriverSettings::instanceFromSettings();
 
     // Build the DSN.
-    $options = array();
+    $options = [];
     $options['Server'] = $connection_options['host'] . (!empty($connection_options['port']) ? ',' . $connection_options['port'] : '');
     // We might not have a database in the
     // connection options, for example, during
@@ -131,26 +131,27 @@ class Connection extends DatabaseConnection {
     }
 
     // Set isolation level if specified.
-    if ($level = $driver_settings->GetDefaultIsolationLevel()) {
+    if ($level = $driverSettings->GetDefaultIsolationLevel()) {
       $options['TransactionIsolation'] = $level;
     }
 
-    // Build the DSN
+    // Build the DSN.
     $dsn = 'sqlsrv:';
     foreach ($options as $key => $value) {
       $dsn .= (empty($key) ? '' : "{$key}=") . $value . ';';
     }
 
-    // PDO Options are set at a connection level.
-    // and apply to all statements.
-    $connection_options['pdo'] = array();
-
-    // Set proper error mode for all statements
-    $connection_options['pdo'][PDO::ATTR_ERRMODE] = PDO::ERRMODE_EXCEPTION;
+    // Allow PDO options to be overridden.
+    $connection_options += [
+      'pdo' => [],
+    ];
+    $connection_options['pdo'] += [
+      \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+    ];
 
     // Set a Statement class, unless the driver opted out.
-    // $connection_options['pdo'][PDO::ATTR_STATEMENT_CLASS] = array(Statement::class, array(Statement::class));
-
+    // $connection_options['pdo'][PDO::ATTR_STATEMENT_CLASS] =
+    // array(Statement::class, array(Statement::class));.
     // Actually instantiate the PDO.
     try {
       $pdo = new \PDO($dsn, $connection_options['username'], $connection_options['password'], $connection_options['pdo']);
@@ -159,7 +160,7 @@ class Connection extends DatabaseConnection {
       if ($e->getCode() == static::DATABASE_NOT_FOUND) {
         throw new DatabaseNotFoundException($e->getMessage(), $e->getCode(), $e);
       }
-      throw new $e;
+      throw new $e();
     }
 
     return $pdo;
