@@ -419,7 +419,7 @@ class Schema extends DatabaseSchema {
   public function engineVersion() {
     if (!isset($this->engineVersion)) {
       $this->engineVersion = $this->connection
-        ->queryDirect(<<< EOF
+        ->query_direct(<<< EOF
           SELECT CONVERT (varchar,SERVERPROPERTY('productversion')) AS VERSION,
           CONVERT (varchar,SERVERPROPERTY('productlevel')) AS LEVEL,
           CONVERT (varchar,SERVERPROPERTY('edition')) AS EDITION
