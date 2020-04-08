@@ -716,14 +716,27 @@ class Connection extends DatabaseConnection {
     return $query;
   }
 
+  /**
+   * A map of condition operators to sqlsrv operators.
+   *
+   * SQL Server doesn't need special escaping for the \ character in a string
+   * literal, because it uses '' to escape the single quote, not \'.
+   *
+   * @var array
+   */
+  protected static $sqlsrvConditionOperatorMap = [
+    // These can be changed to 'LIKE' => ['postfix' => " ESCAPE '\\'"],
+    // if https://bugs.php.net/bug.php?id=79276 is fixed.
+    'LIKE' => [],
+    'NOT LIKE' => [],
+    'LIKE BINARY' => ['operator' => 'LIKE'],
+  ];
+  
+  /**
+   * {@inheritdoc}
+   */
   public function mapConditionOperator($operator) {
-    // SQL Server doesn't need special escaping for the \ character in a string
-    // literal, because it uses '' to escape the single quote, not \'.
-    static $specials = array(
-    'LIKE' => array(),
-    'NOT LIKE' => array(),
-    );
-    return isset($specials[$operator]) ? $specials[$operator] : NULL;
+    return isset(static::$sqlsrvConditionOperatorMap[$operator]) ? static::$sqlsrvConditionOperatorMap[$operator] : NULL;
   }
 
   /**
