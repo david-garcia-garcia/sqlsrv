@@ -22,30 +22,89 @@ use Drupal\Core\Database\Query\Condition as DatabaseCondition;
 class Select extends QuerySelect {
 
   /**
-   * Overriden with an aditional exclude parameter that tells not to include this expression (by default)
-   * in the select list.
+   * Adds an expression to the list of "fields" to be SELECTed.
+   *
+   * An expression can be any arbitrary string that is valid SQL. That includes
+   * various functions, which may in some cases be database-dependent. This
+   * method makes no effort to correct for database-specific functions.
+   *
+   * Overriden with an aditional exclude parameter that tells not to include
+   * this expression (by default) in the select list.
+   *
+   * Drupal expects the AVG() function to return a decimal number. SQL Server
+   * will return the FLOOR instead. We multiply the expression by 1.0 to force
+   * a cast inside the AVG function. `AVG(m.id)` becomes `AVG(m.id * 1.0)`.
    *
    * @param string $expression
-   *
+   *   The expression string. May contain placeholders.
    * @param string $alias
-   *
-   * @param string $arguments
-   *
+   *   The alias for this expression. If not specified, one will be generated
+   *   automatically in the form "expression_#". The alias will be checked for
+   *   uniqueness, so the requested alias may not be the alias that is assigned
+   *   in all cases.
+   * @param mixed $arguments
+   *   Any placeholder arguments needed for this expression.
    * @param string $exclude
-   *   If set to TRUE, this expression will not be added to the select list. Useful
-   *   when you want to reuse expressions in the WHERE part.
+   *   If set to TRUE, this expression will not be added to the select list.
+   *   Useful when you want to reuse expressions in the WHERE part.
    * @param string $expand
    *   If this expression will be expanded as a CROSS_JOIN so it can be consumed
-   *   from other parts of the query. TRUE by default. It attempts to detect expressions
-   *   that cannot be cross joined (aggregates).
+   *   from other parts of the query. TRUE by default. It attempts to detect
+   *   expressions that cannot be cross joined (aggregates).
+   *
    * @return string
+   *   The unique alias that was assigned for this expression.
    */
-  public function addExpression($expression, $alias = NULL, $arguments = array(), $exclude = FALSE, $expand = TRUE) {
-    $alias = parent::addExpression($expression, $alias, $arguments);
+  public function addExpression($expression, $alias = NULL, $arguments = [], $exclude = FALSE, $expand = TRUE) {
+    $sub_expression = $expression;
+    $replacement_expression = '';
+    while (strlen($sub_expression) > 5 && (($pos1 = stripos($sub_expression, 'AVG(')) !== FALSE)) {
+      $pos2 = $this->findParenMatch($sub_expression, $pos1 + 3);
+      $inner = substr($sub_expression, $pos1 + 4, $pos2 - 4 - $pos1);
+      $replacement_expression .= substr($sub_expression, 0, $pos1 + 4) . '(' . $inner . ') * 1.0)';
+
+      if (strlen($sub_expression) > $pos2 + 1) {
+        $sub_expression = substr($sub_expression, $pos2 + 1);
+      }
+      else {
+        $sub_expression = '';
+      }
+    }
+    $replacement_expression .= $sub_expression;
+    $alias = parent::addExpression($replacement_expression, $alias, $arguments);
     $this->expressions[$alias]['exclude'] = $exclude;
     $this->expressions[$alias]['expand'] = $expand;
     return $alias;
   }
+
+  /**
+   * Given a string find the matching parenthesis after the given point.
+   *
+   * @param string $string
+   *   The input string.
+   * @param int $start_paren
+   *   The 0 indexed position of the open-paren, for which we would like
+   *   to find the matching closing-paren.
+   *
+   * @return int
+   *   The 0 indexed position of the close paren.
+   */
+  private function findParenMatch($string, $start_paren) {
+    $str_array = str_split(substr($string, $start_paren + 1));
+    $paren_num = 1;
+    foreach ($str_array as $i => $char) {
+      if ($char == '(') {
+        $paren_num++;
+      }
+      elseif ($char == ')') {
+        $paren_num--;
+      }
+      if ($paren_num == 0) {
+        return $i + $start_paren + 1;
+      }
+    }
+  }
+
   /**
    * Override for SelectQuery::preExecute().
    *
