@@ -812,7 +812,11 @@ EOF
     if (!isset($field['size'])) {
       $field['size'] = 'normal';
     }
-    
+    $int_type = isset($field['type']) && ($field['type'] == 'serial' || $field['type'] == 'int');
+    $unsigned_normal = isset($field['unsigned']) && $field['unsigned'] === TRUE && $field['size'] == 'normal';
+    if ($int_type && $unsigned_normal) {
+      $field['size'] = 'big';
+    }
     // Set the correct database-engine specific datatype.
     if (!isset($field['sqlsrv_type'])) {
       $map = $this->getFieldTypeMap();
