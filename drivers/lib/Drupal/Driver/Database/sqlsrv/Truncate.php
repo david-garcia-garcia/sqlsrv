@@ -1,21 +1,21 @@
 <?php
 
-/**
- * @file
- * Definition of Drupal\Driver\Database\sqlsrv\Truncate
- */
-
 namespace Drupal\Driver\Database\sqlsrv;
 
 use Drupal\Core\Database\Query\Truncate as QueryTruncate;
 
+/**
+ * General class for an abstracted TRUNCATE operation.
+ *
+ * Can the execute function be removed? It's identical to the parent.
+ */
 class Truncate extends QueryTruncate {
 
   /**
    * {@inheritdoc}
    */
   public function execute() {
-    return $this->connection->query((string) $this, array(), $this->queryOptions);
+    return $this->connection->query((string) $this, [], $this->queryOptions);
   }
 
   /**
@@ -37,4 +37,5 @@ class Truncate extends QueryTruncate {
       return $comments . 'TRUNCATE TABLE {' . $this->connection->escapeTable($this->table) . '} ';
     }
   }
+
 }

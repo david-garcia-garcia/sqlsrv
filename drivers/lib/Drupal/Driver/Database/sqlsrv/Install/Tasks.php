@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Definition of Drupal\Driver\Database\sqlsrv\Tasks
- */
-
 namespace Drupal\Driver\Database\sqlsrv\Install;
 
 use Drupal\Core\Database\Database;
@@ -28,18 +23,18 @@ class Tasks extends InstallTasks {
    * Constructs a \Drupal\Core\Database\Driver\pgsql\Install\Tasks object.
    */
   public function __construct() {
-    $this->tasks[] = array(
+    $this->tasks[] = [
       'function' => 'checkEncoding',
-      'arguments' => array(),
-    );
-    $this->tasks[] = array(
+      'arguments' => [],
+    ];
+    $this->tasks[] = [
       'function' => 'initializeDatabase',
-      'arguments' => array(),
-    );
-    $this->tasks[] = array(
+      'arguments' => [],
+    ];
+    $this->tasks[] = [
       'function' => 'enableModule',
-      'arguments' => array(),
-    );
+      'arguments' => [],
+    ];
   }
 
   /**
@@ -53,7 +48,10 @@ class Tasks extends InstallTasks {
    * {@inheritdoc}
    */
   public function minimumVersion() {
-    return '8.3';
+    // SQL Server 2019 - 15.x - 2025-01-07.
+    // SQL Server 2017 - 14.x - 2022-10-11.
+    // SQL Server 2016 - 13.x - 2021-07-13.
+    return '13.0';
   }
 
   /**
@@ -62,7 +60,7 @@ class Tasks extends InstallTasks {
   protected function connect() {
     try {
       // This doesn't actually test the connection.
-      db_set_active();
+      Database::setActiveConnection();
       // Now actually do a check.
       Database::getConnection();
       $this->pass('Drupal can CONNECT to the database ok.');
@@ -98,20 +96,20 @@ class Tasks extends InstallTasks {
         catch (DatabaseNotFoundException $e) {
           // Still no dice; probably a permission issue. Raise the error to the
           // installer.
-          $this->fail(t('Database %database not found. The server reports the following message when attempting to create the database: %error.', array('%database' => $database, '%error' => $e->getMessage())));
+          $this->fail(t('Database %database not found. The server reports the following message when attempting to create the database: %error.', ['%database' => $database, '%error' => $e->getMessage()]));
           return FALSE;
         }
         catch (\PDOException $e) {
           // Still no dice; probably a permission issue. Raise the error to the
           // installer.
-          $this->fail(t('Database %database not found. The server reports the following message when attempting to create the database: %error.', array('%database' => $database, '%error' => $e->getMessage())));
+          $this->fail(t('Database %database not found. The server reports the following message when attempting to create the database: %error.', ['%database' => $database, '%error' => $e->getMessage()]));
           return FALSE;
         }
       }
       else {
         // Database connection failed for some other reason than the database
         // not existing.
-        $this->fail(t('Failed to connect to your database server. The server reports the following message: %error.<ul><li>Is the database server running?</li><li>Does the database exist, and have you entered the correct database name?</li><li>Have you entered the correct username and password?</li><li>Have you entered the correct database hostname?</li></ul>', array('%error' => $e->getMessage())));
+        $this->fail(t('Failed to connect to your database server. The server reports the following message: %error.<ul><li>Is the database server running?</li><li>Does the database exist, and have you entered the correct database name?</li><li>Have you entered the correct username and password?</li><li>Have you entered the correct database hostname?</li></ul>', ['%error' => $e->getMessage()]));
         return FALSE;
       }
     }
@@ -124,17 +122,20 @@ class Tasks extends InstallTasks {
   protected function checkEncoding() {
     try {
       $database = Database::getConnection();
+
+      /** @var \Drupal\Driver\Database\sqlsrv\Schema $schema */
       $schema = $database->schema();
       $collation = $schema->getCollation();
-      if ($collation == Schema::DEFAULT_COLLATION_CI || stristr($collation, '_CI') !== FALSE) {
-        $this->pass(t('Database is encoded in case insensitive collation: $collation'));
+      if ($collation == Schema::DEFAULT_COLLATION_CI || stristr($collation, '_UT') !== FALSE) {
+        $this->pass(t('Database is encoded in UTF8 collation: $collation'));
       }
       else {
-        $this->fail(t('The %driver database must use case insensitive encoding (recomended %encoding) to work with Drupal. Recreate the database with %encoding encoding. See !link for more details.', array(
+        $this->fail(t('The %driver database is using %current collation, but must use UTF8 encoding (recomended %encoding) to work with Drupal. Recreate the database with %encoding encoding. See !link for more details.', [
+          '%current' => $collation,
           '%encoding' => Schema::DEFAULT_COLLATION_CI,
           '%driver' => $this->name(),
-          '!link' => '<a href="INSTALL.sqlsrv.txt">INSTALL.sqlsrv.txt</a>'
-        )));
+          ':link' => '<a href="INSTALL.sqlsrv.txt">INSTALL.sqlsrv.txt</a>',
+        ]));
       }
     }
     catch (\Exception $e) {
@@ -145,14 +146,14 @@ class Tasks extends InstallTasks {
   /**
    * Make SQLServer Drupal friendly.
    */
-  function initializeDatabase() {
+  public function initializeDatabase() {
     // We create some functions using global names instead of prefixing them
     // like we do with table names. This is so that we don't double up if more
     // than one instance of Drupal is running on a single database. We therefore
     // avoid trying to create them again in that case.
     try {
 
-      /** @var Connection $database */
+      /** @var \Drupal\Driver\Database\sqlsrv\Connection $connection */
       $connection = Database::getConnection();
 
       Utils::DeployCustomFunctions($connection);
@@ -167,11 +168,11 @@ class Tasks extends InstallTasks {
   /**
    * Enable the SQL Server module.
    */
-  function enableModule() {
+  public function enableModule() {
     // TODO: Looks like the module hanlder service is unavailable during
     // this installation phase?
-    //$handler = new \Drupal\Core\Extension\ModuleHandler();
-    //$handler->enable(array('sqlsrv'), FALSE);
+    // $handler = new \Drupal\Core\Extension\ModuleHandler();
+    // $handler->enable(array('sqlsrv'), FALSE);.
   }
 
   /**
@@ -182,10 +183,18 @@ class Tasks extends InstallTasks {
     if (empty($form['advanced_options']['port']['#default_value'])) {
       $form['advanced_options']['port']['#default_value'] = '1433';
     }
+    $form['advanced_options']['schema'] = [
+      '#type' => 'textfield',
+      '#title' => t('Schema'),
+      '#default_value' => empty($database['schema']) ? 'dbo' : $database['schema'],
+      '#size' => 10,
+      '#required' => FALSE,
+    ];
     // Make username not required.
     $form['username']['#required'] = FALSE;
     // Add a description for about leaving username blank.
     $form['username']['#description'] = t('Leave username (and password) blank to use Windows authentication.');
     return $form;
   }
+
 }

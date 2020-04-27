@@ -1,16 +1,10 @@
 <?php
 
-/**
- * @file
- * Definition of Drupal\Driver\Database\sqlsrv\Select
- */
-
 namespace Drupal\Driver\Database\sqlsrv;
 
 use Drupal\Core\Database\Connection as DatabaseConnection;
-
-use Drupal\Core\Database\Query\PlaceholderInterface as DatabasePlaceholderInterface;
-use Drupal\Core\Database\Query\SelectInterface as DatabaseSelectInterface;
+use Drupal\Core\Database\Query\PlaceholderInterface;
+use Drupal\Core\Database\Query\SelectInterface;
 use Drupal\Core\Database\Query\Select as QuerySelect;
 use Drupal\Core\Database\Query\Condition as DatabaseCondition;
 
@@ -18,8 +12,14 @@ use Drupal\Core\Database\Query\Condition as DatabaseCondition;
  * @addtogroup database
  * @{
  */
-
 class Select extends QuerySelect {
+
+  /**
+   * Is this statement in a subquery?
+   *
+   * @var bool
+   */
+  protected $inSubQuery = FALSE;
 
   /**
    * Adds an expression to the list of "fields" to be SELECTed.
@@ -44,10 +44,10 @@ class Select extends QuerySelect {
    *   in all cases.
    * @param mixed $arguments
    *   Any placeholder arguments needed for this expression.
-   * @param string $exclude
+   * @param bool $exclude
    *   If set to TRUE, this expression will not be added to the select list.
    *   Useful when you want to reuse expressions in the WHERE part.
-   * @param string $expand
+   * @param bool $expand
    *   If this expression will be expanded as a CROSS_JOIN so it can be consumed
    *   from other parts of the query. TRUE by default. It attempts to detect
    *   expressions that cannot be cross joined (aggregates).
@@ -86,10 +86,13 @@ class Select extends QuerySelect {
    *   The 0 indexed position of the open-paren, for which we would like
    *   to find the matching closing-paren.
    *
-   * @return int
+   * @return int|false
    *   The 0 indexed position of the close paren.
    */
   private function findParenMatch($string, $start_paren) {
+    if ($string[$start_paren] !== '(') {
+      return FALSE;
+    }
     $str_array = str_split(substr($string, $start_paren + 1));
     $paren_num = 1;
     foreach ($str_array as $i => $char) {
@@ -103,15 +106,13 @@ class Select extends QuerySelect {
         return $i + $start_paren + 1;
       }
     }
+    return FALSE;
   }
 
   /**
-   * Override for SelectQuery::preExecute().
-   *
-   * Ensure that all the fields in ORDER BY and GROUP BY are part of the
-   * main query.
+   * {@inheritdoc}
    */
-  public function preExecute(DatabaseSelectInterface $query = NULL) {
+  public function preExecute(SelectInterface $query = NULL) {
     // If no query object is passed in, use $this.
     if (!isset($query)) {
       $query = $this;
@@ -133,7 +134,7 @@ class Select extends QuerySelect {
       $counter = 0;
       foreach ($columns as $field => $dummy) {
         $found = FALSE;
-        foreach($this->fields as $f) {
+        foreach ($this->fields as $f) {
           if (!isset($f['table']) || !isset($f['field'])) {
             continue;
           }
@@ -145,13 +146,13 @@ class Select extends QuerySelect {
         }
         if (!isset($this->fields[$field]) && !isset($this->expressions[$field]) && !$found) {
           $alias = '_field_' . ($counter++);
-          $this->addExpression($field, $alias, array(), FALSE, FALSE);
+          $this->addExpression($field, $alias, [], FALSE, FALSE);
           $this->queryOptions['sqlsrv_drop_columns'][] = $alias;
         }
       }
 
-      // The other way round is also true, if using aggregates, all the fields in the SELECT
-      // must be present in the GROUP BY.
+      // The other way round is also true, if using aggregates, all the fields
+      // in the SELECT must be present in the GROUP BY.
       if (!empty($this->group)) {
         foreach ($this->fields as $field) {
           $spec = $field['table'] . '.' . $field['field'];
@@ -171,7 +172,7 @@ class Select extends QuerySelect {
           $group_field = (isset($field['table']) ? $this->connection->escapeTable($field['table']) . '.' : '') . $this->connection->escapeField($field['field']);
         }
         // Expand an alias on an expression.
-        else if (isset($this->expressions[$group_field])) {
+        elseif (isset($this->expressions[$group_field])) {
           $expression = $this->expressions[$group_field];
           $group_field = $expression['expression'];
           // If the expression has arguments, we now
@@ -187,24 +188,34 @@ class Select extends QuerySelect {
   }
 
   /**
-   * Override for SelectQuery::compile().
+   * {@inheritdoc}
    *
-   * Detect when this query is prepared for use in a sub-query.
+   * Why this is needed?
    */
-  public function compile(DatabaseConnection $connection, DatabasePlaceholderInterface $queryPlaceholder) {
+  public function compile(DatabaseConnection $connection, PlaceholderInterface $queryPlaceholder) {
     $this->inSubQuery = $queryPlaceholder != $this;
     return parent::compile($connection, $queryPlaceholder);
   }
 
-  /* strpos that takes an array of values to match against a string
-   * note the stupid argument order (to match strpos)
+  /**
+   * Strpos that takes an array of values to match against a string.
+   *
+   * Note the stupid argument order (to match strpos).
+   *
+   * @param mixed $haystack
+   *   The value to search within.
+   * @param mixed $needle
+   *   Value(s) to look for.
+   *
+   * @return int|false
+   *   The position of the first $needle[] in the $haystack.
    */
-  private function stripos_arr($haystack, $needle) {
-    if(!is_array($needle)) {
-      $needle = array($needle);
+  private function striposArr($haystack, $needle) {
+    if (!is_array($needle)) {
+      $needle = [$needle];
     }
-    foreach($needle as $what) {
-      if(($pos = stripos($haystack, $what)) !== false) {
+    foreach ($needle as $what) {
+      if (($pos = stripos($haystack, $what)) !== FALSE) {
         return $pos;
       }
     }
@@ -234,18 +245,39 @@ class Select extends QuerySelect {
     )
   /Six';
 
-  private $cross_apply_aliases;
+  /**
+   * Aliases for cross apply.
+   *
+   * Is it an array, string, or something that implements ArrayAccess.
+   *
+   * @var mixed
+   */
+  private $crossApplyAliases;
 
+  /**
+   * Replace Reserve Alises.
+   *
+   * @param mixed $matches
+   *   The matches. Is this an array or string?
+   *
+   * @return mixed
+   *   What does it return?
+   */
   protected function replaceReservedAliases($matches) {
     if ($matches[1] !== '') {
       // Replace reserved words.
-      return $this->cross_apply_aliases[$matches[1]];
+      return $this->crossApplyAliases[$matches[1]];
     }
     // Let other value passthru.
     // by the logic of the regex above, this will always be the last match.
     return end($matches);
   }
 
+  /**
+   * {@inheritdoc}
+   *
+   * Overridden to support SQL Server Range Query syntax and CROSS APPLY.
+   */
   public function __toString() {
     // For convenience, we compile the query ourselves if the caller forgot
     // to do it. This allows constructs like "(string) $query" to work. When
@@ -258,14 +290,19 @@ class Select extends QuerySelect {
     // Create a sanitized comment string to prepend to the query.
     $comments = $this->connection->makeComment($this->comments);
 
-    // SELECT
+    // SELECT.
     $query = $comments . 'SELECT ';
     if ($this->distinct) {
       $query .= 'DISTINCT ';
     }
+    $used_range = FALSE;
+    if (!empty($this->range) && $this->range['start'] == 0 && !$this->union && isset($this->range['length'])) {
+      $query .= 'TOP (' . $this->range['length'] . ') ';
+      $used_range = TRUE;
+    }
 
-    // FIELDS and EXPRESSIONS
-    $fields = array();
+    // FIELDS and EXPRESSIONS.
+    $fields = [];
     foreach ($this->tables as $alias => $table) {
       // Table might be a subquery, so nothing to do really.
       if (is_string($table['table']) && !empty($table['all_fields'])) {
@@ -274,11 +311,15 @@ class Select extends QuerySelect {
           $fields[] = $this->connection->escapeTable($alias) . '.*';
         }
         else {
-          $info = $this->connection->schema()->queryColumnInformation($table['table']);
-          // Some fields need to be "transparent" to Drupal, including technical primary keys
-          // or custom computed columns.
-          foreach ($info['columns_clean'] as $column) {
-            $fields[] = $this->connection->escapeTable($alias) . '.' . $this->connection->escapeField($column['name']);
+          /** @var \Drupal\Driver\Database\sqlsrv\Schema $schema */
+          $schema = $this->connection->schema();
+          $info = $schema->queryColumnInformation($table['table']);
+          // Some fields need to be "transparent" to Drupal, including technical
+          // primary keys or custom computed columns.
+          if (isset($info['columns_clean'])) {
+            foreach ($info['columns_clean'] as $column) {
+              $fields[] = $this->connection->escapeTable($alias) . '.' . $this->connection->escapeField($column['name']);
+            }
           }
         }
       }
@@ -293,15 +334,30 @@ class Select extends QuerySelect {
     // The way to emulate that behaviour in SQL Server is to
     // fit all that in a CROSS_APPLY with an alias and then consume
     // it from WHERE or AGGREGATE.
-    $cross_apply = array();
-    $this->cross_apply_aliases = array();
+    $cross_apply = [];
+    $this->crossApplyAliases = [];
     foreach ($this->expressions as $alias => $expression) {
-      // Only use CROSS_APPLY for non-aggregate expresions. This trick
-      // will not work, and does not make sense, for aggregates.
-      // If the alias is 'expression' this is Drupal's default
-      // meaning that more than probably this expression
-      // is never reused in a WHERE.
-      if ($expression['expand'] !== FALSE && $expression['alias'] != 'expression' && $this->stripos_arr($expression['expression'], array('AVG(', 'GROUP_CONCAT(', 'COUNT(', 'MAX(', 'GROUPING(', 'GROUPING_ID(', 'COUNT_BIG(', 'CHECKSUM_AGG(', 'MIN(', 'SUM(', 'VAR(', 'VARP(', 'STDEV(', 'STDEVP(')) === FALSE) {
+      // Only use CROSS_APPLY for non-aggregate expresions. This trick will not
+      // work, and does not make sense, for aggregates. If the alias is
+      // 'expression' this is Drupal's default meaning that more than probably
+      // this expression is never reused in a WHERE.
+      $function_list = [
+        'AVG(',
+        'GROUP_CONCAT(',
+        'COUNT(',
+        'MAX(',
+        'GROUPING(',
+        'GROUPING_ID(',
+        'COUNT_BIG(',
+        'CHECKSUM_AGG(',
+        'MIN(',
+        'SUM(',
+        'VAR(',
+        'VARP(',
+        'STDEV(',
+        'STDEVP(',
+      ];
+      if ($expression['expand'] !== FALSE && $expression['alias'] != 'expression' && $this->striposArr($expression['expression'], $function_list) === FALSE) {
         // What we are doing here is using a CROSS APPLY to
         // generate an expression that can be used in the select and where
         // but we need to give this expression a new name.
@@ -312,99 +368,87 @@ class Select extends QuerySelect {
           $fields[] = $new_alias . ' AS ' . $expression['alias'];
         }
         // Store old expression and new representation.
-        $this->cross_apply_aliases[$expression['alias']] = 'cross_' . $expression['alias'] . '.cross_sqlsrv';
+        $this->crossApplyAliases[$expression['alias']] = 'cross_' . $expression['alias'] . '.cross_sqlsrv';
       }
       else {
         // We might not want an expression to appear in the select list.
         if ($expression['exclude'] !== TRUE) {
-          $fields[] = $expression['expression'] . ' AS [' . $expression['alias'] .']';
+          $fields[] = $expression['expression'] . ' AS [' . $expression['alias'] . ']';
         }
       }
     }
     $query .= implode(', ', $fields);
 
-    // FROM - We presume all queries have a FROM, as any query that doesn't won't need the query builder anyway.
-    $query .= "\nFROM ";
+    // FROM - We presume all queries have a FROM, as any query that doesn't
+    // won't need the query builder anyway.
+    $query .= "\nFROM";
     foreach ($this->tables as $alias => $table) {
       $query .= "\n";
       if (isset($table['join type'])) {
         $query .= $table['join type'] . ' JOIN ';
       }
 
-      // If the table is a subquery, compile it and integrate it into this query.
-      if ($table['table'] instanceof DatabaseSelectInterface) {
+      // If the table is a subquery, compile it and integrate it into this
+      // query.
+      if ($table['table'] instanceof SelectInterface) {
         // Run preparation steps on this sub-query before converting to string.
         $subquery = $table['table'];
         $subquery->preExecute();
         $table_string = '(' . (string) $subquery . ')';
       }
       else {
-        $table_string = '{' . $this->connection->escapeTable($table['table']) . '}';
+        $table_string = $this->connection->escapeTable($table['table']);
+        // Do not attempt prefixing cross database / schema queries.
+        if (strpos($table_string, '.') === FALSE) {
+          $table_string = '{' . $table_string . '}';
+        }
       }
 
       // Don't use the AS keyword for table aliases, as some
       // databases don't support it (e.g., Oracle).
-      $query .=  $table_string . ' ' . $this->connection->escapeTable($table['alias']);
+      $query .= $table_string . ' ' . $this->connection->escapeTable($table['alias']);
 
       if (!empty($table['condition'])) {
         $query .= ' ON ' . $table['condition'];
       }
     }
 
-    // CROSS APPLY
+    // CROSS APPLY.
     $query .= implode($cross_apply);
 
-    // WHERE
+    // WHERE.
     if (count($this->condition)) {
       // There is an implicit string cast on $this->condition.
       $where = (string) $this->condition;
       // References to expressions in cross-apply need to be updated.
       // Now we need to update all references to the expression aliases
       // and point them to the CROSS APPLY alias.
-      if (!empty($this->cross_apply_aliases)) {
-        $regex = str_replace('{0}', implode('|', array_keys($this->cross_apply_aliases)), self::RESERVED_REGEXP_BASE);
+      if (!empty($this->crossApplyAliases)) {
+        $regex = str_replace('{0}', implode('|', array_keys($this->crossApplyAliases)), self::RESERVED_REGEXP_BASE);
         // Add and then remove the SELECT
         // keyword. Do this to use the exact same
         // regex that we have in DatabaseConnection_sqlrv.
         $where = 'SELECT ' . $where;
-        $where = preg_replace_callback($regex, array($this, 'replaceReservedAliases'), $where);
+        $where = preg_replace_callback($regex, [$this, 'replaceReservedAliases'], $where);
         $where = substr($where, 7, strlen($where) - 7);
       }
       $query .= "\nWHERE ( " . $where . " )";
     }
 
-    // GROUP BY
+    // GROUP BY.
     if ($this->group) {
       $group = $this->group;
       // You named it, if the newly expanded expression
       // is added to the select list, then it must
       // also be present in the aggregate expression.
-      $group = array_merge($group, $this->cross_apply_aliases);
+      $group = array_merge($group, $this->crossApplyAliases);
       $query .= "\nGROUP BY " . implode(', ', $group);
     }
 
-    // HAVING
+    // HAVING.
     if (count($this->having)) {
       // There is an implicit string cast on $this->having.
       $query .= "\nHAVING " . $this->having;
-    }
-
-    // ORDER BY
-    // The ORDER BY clause is invalid in views, inline functions, derived
-    // tables, subqueries, and common table expressions, unless TOP or FOR XML
-    // is also specified.
-    if ($this->order && (empty($this->inSubQuery) || !empty($this->range))) {
-      $query .= "\nORDER BY ";
-      $fields = array();
-      foreach ($this->order as $field => $direction) {
-        $fields[] = $field . ' ' . $direction;
-      }
-      $query .= implode(', ', $fields);
-    }
-
-    // RANGE
-    if (!empty($this->range)) {
-      $query = $this->connection->addRangeToQuery($query, $this->range['start'], $this->range['length']);
     }
 
     // UNION is a little odd, as the select queries to combine are passed into
@@ -413,6 +457,28 @@ class Select extends QuerySelect {
       foreach ($this->union as $union) {
         $query .= ' ' . $union['type'] . ' ' . (string) $union['query'];
       }
+    }
+
+    // ORDER BY
+    // The ORDER BY clause is invalid in views, inline functions, derived
+    // tables, subqueries, and common table expressions, unless TOP or FOR XML
+    // is also specified.
+    $add_order_by = $this->order && (empty($this->inSubQuery) || !empty($this->range));
+    if ($add_order_by) {
+      $query .= "\nORDER BY ";
+      $fields = [];
+      foreach ($this->order as $field => $direction) {
+        $fields[] = $this->connection->escapeField($field) . ' ' . $direction;
+      }
+      $query .= implode(', ', $fields);
+    }
+
+    // RANGE.
+    if (!empty($this->range) && !$used_range) {
+      if (!$add_order_by) {
+        $query .= " ORDER BY (SELECT NULL)";
+      }
+      $query .= " OFFSET {$this->range['start']} ROWS FETCH NEXT {$this->range['length']} ROWS ONLY";
     }
 
     return $query;
@@ -432,8 +498,13 @@ class Select extends QuerySelect {
     return $this;
   }
 
-  private function GetUsedAliases(DatabaseCondition $condition, array &$aliases = array()) {
-    foreach($condition->conditions() as $key => $c) {
+  /**
+   * Mark Alises.
+   *
+   * Does not return anything, so should not be called 'getUsedAliases'
+   */
+  private function getUsedAliases(DatabaseCondition $condition, array &$aliases = []) {
+    foreach ($condition->conditions() as $key => $c) {
       if (is_string($key) && substr($key, 0, 1) == '#') {
         continue;
       }
@@ -447,10 +518,15 @@ class Select extends QuerySelect {
   }
 
   /**
-   * This is like the default countQuery, but does not optimize field (or expressions)
-   * that are being used in conditions.
+   * Prepare a count query.
+   *
+   * This is like the default prepareCountQuery, but does not optimize field (or
+   * expressions) that are being used in conditions. (Why not?)
+   *
+   * @return mixed
+   *   A Select object.
    */
-  public function countQuery() {
+  protected function prepareCountQuery() {
     // Create our new query object that we will mutate into a count query.
     $count = clone($this);
 
@@ -459,8 +535,8 @@ class Select extends QuerySelect {
 
     if (!$count->distinct && !isset($having[0])) {
 
-      $used_aliases = array();
-      $this->GetUsedAliases($count->condition, $used_aliases);
+      $used_aliases = [];
+      $this->getUsedAliases($count->condition, $used_aliases);
 
       // When not executing a distinct query, we can zero-out existing fields
       // and expressions that are not used by a GROUP BY or HAVING. Fields
@@ -480,8 +556,8 @@ class Select extends QuerySelect {
         }
       }
 
-      // Also remove 'all_fields' statements, which are expanded into tablename.*
-      // when the query is executed.
+      // Also remove 'all_fields' statements, which are expanded into
+      // tablename.* when the query is executed.
       foreach ($count->tables as $alias => &$table) {
         unset($table['all_fields']);
       }
@@ -494,19 +570,18 @@ class Select extends QuerySelect {
     // Ordering a count query is a waste of cycles, and breaks on some
     // databases anyway.
     $orders = &$count->getOrderBy();
-    $orders = array();
+    $orders = [];
 
     if ($count->distinct && !empty($group_by)) {
       // If the query is distinct and contains a GROUP BY, we need to remove the
-      // distinct because SQL99 does not support counting on distinct multiple fields.
+      // distinct because SQL99 does not support counting on distinct multiple
+      // fields.
       $count->distinct = FALSE;
     }
 
-    $query = $this->connection->select($count);
-    $query->addExpression('COUNT(*)');
-
-    return $query;
+    return $count;
   }
+
 }
 
 /**
