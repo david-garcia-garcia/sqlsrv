@@ -278,7 +278,7 @@ class Select extends QuerySelect {
           // Some fields need to be "transparent" to Drupal, including technical primary keys
           // or custom computed columns.
           foreach ($info['columns_clean'] as $column) {
-            $fields[] = $this->connection->escapeTable($alias) . '.' . $column['name'];
+            $fields[] = $this->connection->escapeTable($alias) . '.' . $this->connection->escapeField($column['name']);
           }
         }
       }
