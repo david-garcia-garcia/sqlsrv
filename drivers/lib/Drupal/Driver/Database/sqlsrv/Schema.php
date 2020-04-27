@@ -315,7 +315,10 @@ class Schema extends DatabaseSchema {
         }
         catch (Exception $e) {
           // Log the exception but do not rollback the transaction.
-          watchdog_exception('database', $e);
+          // Is there a better way to do this?
+          if ($this->tableExists('watchdog')) {
+            watchdog_exception('database', $e);
+          }
         }
       }
     }
