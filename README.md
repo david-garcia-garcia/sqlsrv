@@ -10,9 +10,6 @@ SQL Server Driver for Drupal
 This contrib module allows the Drupal CMS to connect to Microsoft SQL Server
 databases.
 
-The 8.x-1.x branch will continue to fulfill the needs of site operators who
-are currently using this branch and will not upgrade to Drupal 9.
-
 Setup
 -----
 
@@ -64,27 +61,43 @@ Note that there is a PDO bug that prevents multiple
 statement. A different escape character can be chosen if you need a custom
 escape character multiple times. This bug just affects the backslash.
 
-Outstanding Issues
------
-The 1.x branch is not able to pass all Drupal tests due to limitations in
-SQL server before SQL Server 2019. These earlier vesions do not natively
-support UTF8 character encoding. This means most string data is stored in the
-database as an `nvarchar`. Converting nvarchar to varbinary and back leads to
-data corruption.
+### Binary Large Objects
+
+Varbinary data in SQL Server presents two issues. SQL Server is unable to
+directly compare a string to a blob without casting the string to varbinary.
+This means a query cannot add a ->condition('blob_field', $string) to any
+Select query. Thankfully, this is not done in core code, but there is nothing
+to stop core from doing so in the future. Contrib modules may currently use
+this pattern.
+
+### Non-ASCII strings
+
+Most varchar data is actually stored as nvarchar, because varchar is ascii-only.
+Drupal uses UTF-8 while nvarchar encodes data as UCS-2. There are some character
+encoding issues that can arise in strange edge cases. Data is typically saved to
+varbinary as a stream of UTF-8 characters. If, instead, an nvarchar is converted
+into a varbinary, and the binary data extracted into Drupal, it will not be the
+same as when it started.
+
+### Collation
 
 The 1.x branch creates the database with a case-insensitive collation for text
-fields. However, all non-MySQL databases use case-sensitive default. One
-Kernel Test fails due to this default in this driver.
+fields. However, all non-MySQL databases use case-sensitive default.
+
+Outstanding Issues
+-----
+The issues mentioned above means that the sqlsrv driver does not pass every core
+test. The project issues queue lists the failing core tests, and the progress in
+remedying them.
 
 The following are outstanding core issues that affect the sqlsrv driver.
 
-All Versions:
-* https://www.drupal.org/files/issues/2020-04-18/3128761-2.patch
-* https://www.drupal.org/files/issues/2020-04-24/3130655-3.patch
-* https://www.drupal.org/files/issues/2020-04-27/3131379-2.patch
+All Versions (needs work, patch review or awaiting merge):
+* [Override Condition in views](https://www.drupal.org/node/3130655)-[[patch](https://www.drupal.org/files/issues/2020-04-24/3130655-3.patch)]
 
-Drupal 8.x:
-* https://www.drupal.org/files/issues/2020-02-22/2867788-79.patch
+Drupal 8.x (Already merged into Drupal Core 9+):
+* [Logger backtrace incorrect](https://www.drupal.org/node/2867788)-[[patch](https://www.drupal.org/files/issues/2020-02-22/2867788-79.patch)]
 
-Drupal 8.8.x:
-* https://www.drupal.org/files/issues/2020-03-10/3113403-33.patch
+Drupal 8.8.x (Already merged into Drupal Core 8.9+)
+* [Allow core Condition to be overridden](https://www.drupal.org/node/3113403)-\[[patch](https://www.drupal.org/files/issues/2020-03-10/3113403-33.patch)]
+* [CONCAT_WS edge case](https://www.drupal.org/node/3131379)-[[patch](https://www.drupal.org/files/issues/2020-05-05/3131379-8.patch)]

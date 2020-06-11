@@ -6,7 +6,6 @@ use Drupal\Core\Database\Database;
 use Drupal\Core\Database\Install\Tasks as InstallTasks;
 use Drupal\Core\Database\DatabaseNotFoundException;
 use Drupal\Driver\Database\sqlsrv\Connection;
-use Drupal\Driver\Database\sqlsrv\Schema;
 use Drupal\Driver\Database\sqlsrv\Utils;
 
 /**
@@ -126,13 +125,12 @@ class Tasks extends InstallTasks {
       /** @var \Drupal\Driver\Database\sqlsrv\Schema $schema */
       $schema = $database->schema();
       $collation = $schema->getCollation();
-      if ($collation == Schema::DEFAULT_COLLATION_CI || stristr($collation, '_UT') !== FALSE) {
-        $this->pass(t('Database is encoded in UTF8 collation: $collation'));
+      if (stristr($collation, '_CI_') !== FALSE) {
+        $this->pass(t('Database is encoded in case insensitive collation: $collation'));
       }
       else {
-        $this->fail(t('The %driver database is using %current collation, but must use UTF8 encoding (recomended %encoding) to work with Drupal. Recreate the database with %encoding encoding. See !link for more details.', [
+        $this->fail(t('The %driver database is using %current collation, but must use case insensitive collation to work with Drupal. Recreate the database with this collation. See !link for more details.', [
           '%current' => $collation,
-          '%encoding' => Schema::DEFAULT_COLLATION_CI,
           '%driver' => $this->name(),
           ':link' => '<a href="INSTALL.sqlsrv.txt">INSTALL.sqlsrv.txt</a>',
         ]));
@@ -189,6 +187,12 @@ class Tasks extends InstallTasks {
       '#default_value' => empty($database['schema']) ? 'dbo' : $database['schema'],
       '#size' => 10,
       '#required' => FALSE,
+    ];
+    $form['advanced_options']['cache_schema'] = [
+      '#type' => 'checkbox',
+      '#title' => t('Cache Schema Definitions'),
+      '#description' => t('Allow the table schema to be cached. This will significantly speed up the site, but the schema must be stable.'),
+      '#return_value' => 'true',
     ];
     // Make username not required.
     $form['username']['#required'] = FALSE;

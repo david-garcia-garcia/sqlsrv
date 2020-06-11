@@ -2,30 +2,37 @@ skip_tags: true
 init:
   - ps: ''
 services:
-  - mssql2017
+  - mssql2016
   - iis
-hosts:
-  www.mydrupalsite.com: 127.0.0.1
 image:
-  - Visual Studio 2019
+  - Visual Studio 2017
+environment:
+  matrix:
+    - TEST_SUITE: core-kernel
+    - TEST_SUITE: core-extensions-kernel-1
 install:
-  - ps: $Env:APPVEYOR_REPO_COMMIT_MESSAGE_FULL = "$env:APPVEYOR_REPO_COMMIT_MESSAGE $env:APPVEYOR_REPO_COMMIT_MESSAGE_EXTENDED".TrimEnd();
+  # Set up the Environment
   - cmd: mkdir c:\testlogs
-  - ps: Start-Service 'MSSQL$SQL2017' | out-null
-  - ps: Set-Service 'SQLAgent$SQL2017' -StartupType Manual | out-null
-  - ps: Start-Service W3SVC | out-null
+  # SET UP DATABASE
+  - ps: powershell .\dev\appveyor\mssql2016.ps1
+  # SET UP PHP
+  # is OpenSSL needed?
   - ps: choco install php --version=7.3.12 --package-parameters="/InstallDir:C:\tools\php" -y --no-progress 2>&1 > C:\TestLogs\choco_install_php.txt
   - ps: choco install urlrewrite -y --no-progress 2>&1 > C:\TestLogs\choco_install_urlrewrite.txt
   - ps: choco install OpenSSL.Light -y --no-progress 2>&1 > C:\TestLogs\choco_install_openssl.txt
-  - ps: | 
-      $WorkingDir = Convert-Path .
-      $ZipPath = Join-Path $WorkingDir '\chef_cmdlet.zip'
-      (New-Object Net.WebClient).DownloadFile('https://ci.appveyor.com/api/projects/David19767/iischef/artifacts/iischef.cmdlet.zip?branch=1.x', $ZipPath)
-      $DESTINATION= Join-Path $env:ProgramFiles "\WindowsPowerShell\Modules\Chef"
-      New-Item -ItemType directory -Force -Path $DESTINATION
-      (new-object -com shell.application).namespace($DESTINATION).CopyHere((new-object -com shell.application).namespace($ZipPath).Items(),16)
-      Remove-Item $ZipPath
   - ps: $Env:Path = "C:\Program Files\OpenSSL;" + $Env:Path;
+  - ps: |
+      $cli = New-Object Net.WebClient
+      $cli.Headers['User-Agent'] = 'Appveyor';
+      $cli.DownloadFile('https://windows.php.net/downloads/pecl/releases/pdo_sqlsrv/5.8.1/php_pdo_sqlsrv-5.8.1-7.3-nts-vc15-x64.zip', 'C:\testlogs\php_pdo_sqlsrv.zip')
+  - ps: |
+      $cli = New-Object Net.WebClient
+      $cli.Headers['User-Agent'] = 'Appveyor';
+      $cli.DownloadFile('http://windows.php.net/downloads/pecl/releases/yaml/2.1.0/php_yaml-2.1.0-7.3-nts-vc15-x64.zip', 'C:\testlogs\php_yaml.zip')
+  - ps: Expand-Archive -Path 'C:\testlogs\php_pdo_sqlsrv.zip' -Destinationpath 'C:\testlogs\php_pdo_sqlsrv'
+  - cmd: copy C:\testlogs\php_pdo_sqlsrv\php_pdo_sqlsrv.dll C:\tools\php\ext
+  - ps: Expand-Archive -Path 'C:\testlogs\php_yaml.zip' -Destinationpath 'C:\testlogs\php_yaml'
+  - cmd: xcopy C:\testlogs\php_yaml\php_yaml.dll C:\tools\php\ext
   # Start Windows Update service
   - cmd: sc config wuauserv start= auto
   - cmd: net start wuauserv
@@ -34,99 +41,67 @@ install:
   - ps: $Env:Path = "C:\tools\php;" + $Env:Path;
   # Edit the php.ini file - Should we have a php.ini.dist file somewhere that we just `cat` into the exiting file?
   - ps: Add-Content C:\tools\php\php.ini "extension_dir=ext"
+  - ps: Add-Content C:\tools\php\php.ini "extension=php_pdo_sqlsrv"
   - ps: Add-Content C:\tools\php\php.ini "extension=php_openssl"
   - ps: Add-Content C:\tools\php\php.ini "extension=php_mbstring"
   - ps: Add-Content C:\tools\php\php.ini "extension=php_curl"
   - ps: Add-Content C:\tools\php\php.ini "extension=php_gd2.dll"
   - ps: Add-Content C:\tools\php\php.ini 'curl.cainfo="C:\tools\php\cacert.pem"'
   - ps: Add-Content C:\tools\php\php.ini 'openssl.cafile="C:\tools\php\cacert.pem"'
+  # Set up Drupal
   # Create a directory for composer and install
   - ps: new-item c:\composer -itemtype directory
   - cmd: cd /d C:\composer
   - cmd: choco install composer --version=4.10.0 -y --no-progress
   - ps: refreshenv
   - cmd: SET PATH=C:\ProgramData\ComposerSetup\bin;%PATH%
-  - ps: |
-      If ($Env:APPVEYOR_REPO_COMMIT_MESSAGE_FULL -imatch 'rdpcomposer') {
-        $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
-      }
   - cmd: composer global require hirak/prestissimo --no-progress
   - cmd: cd /d c:\projects
   # Create a new drupal project
-  - cmd: IF NOT EXIST C:\projects\drupal-project composer create-project -n drupal-composer/drupal-project:8.x-dev
+  - cmd: set COMPOSER_MEMORY_LIMIT=-1
+  - cmd: git clone https://git.drupalcode.org/project/drupal.git -b 8.8.x drupal-project
   # Add composer installed binaries to PATH
   - cmd: SET PATH=C:\projects\drupal-project\vendor\bin;%PATH%
   - cmd: cd /d C:\projects\drupal-project
-  - cmd: composer config repositories.drupal composer https://packages.drupal.org/8
   # Install other composer packages for production
-  - cmd: composer require drupal/sqlsrv:dev-1.x@dev
   - cmd: composer require symfony/psr-http-message-bridge:1.1.x-dev
-  # Replace the pulled module with the local files, only for this CI
-  - cmd: xcopy /I /Y %APPVEYOR_BUILD_FOLDER% %cd%\web\modules\contrib\sqlsrv
-  # Copy driver
-  - cmd: xcopy /S /I /E /Y %APPVEYOR_BUILD_FOLDER%\src %cd%\web\modules\contrib\sqlsrv\src
-  - cmd: xcopy /S /I /E /Y %APPVEYOR_BUILD_FOLDER%\tests %cd%\web\modules\contrib\sqlsrv\tests
-  - cmd: xcopy /S /I /E /Y %APPVEYOR_BUILD_FOLDER%\drivers %cd%\web\drivers
-  - ps: |
-      $cwd = (Get-Location).Path;
-      "php $cwd\vendor\drupal\console\bin\drupal " + $([char]37) + "*" | Out-File $cwd/web/drupal.bat -Encoding ASCII
-  - cmd: cd /d C:\projects\drupal-project\web
-  - cmd: xcopy "%APPVEYOR_BUILD_FOLDER%\dev\appveyor" "C:\projects\drupal-project\chef" /r /s /i
-  - ps: Invoke-ChefSelfInstall -Path "c:\chef"
-  - ps: Invoke-ChefAppDeployPath "C:\projects\drupal-project" drupal -Install
-  - ps: $site = Invoke-ChefAppGetDeployment drupal
-  - ps: $Env:DATABASENAME = $site.DeploymentActive.GetRuntimeSetting("services.default.database", "");
-  - ps: $Env:DATABASEPASSWORD = $site.DeploymentActive.GetRuntimeSetting("services.default.password", "");
-  - ps: $Env:DATABASEUSER = $site.DeploymentActive.GetRuntimeSetting("services.default.username", "");
-  - ps: $Env:DATABASEHOST = $site.DeploymentActive.GetRuntimeSetting("services.default.host", "");
-  - ps: $Env:SITERUNTIMEPATH = $site.DeploymentActive.runtimePath;
-  # Make the site's PHP environment the default PHP environment
-  - cmd: set path=%SITERUNTIMEPATH%\php;%path%
-  - cmd: drupal about
-  - ps: |
-      If ($Env:APPVEYOR_REPO_COMMIT_MESSAGE_FULL -imatch 'rdpinstall') {
-        $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
-      }
-  - cmd: drupal site:install standard --langcode="en" --db-type="sqlsrv" --db-host="localhost\SQL2017" --db-name="mydrupalsite" --db-user="sa" --db-pass="Password12!" --db-port="1433" --site-name="SQL Server Drupal Site" --site-mail="admin@example.com" --account-name="admin" --account-mail="admin@example.com" --account-pass="admin" --no-interaction
-  - ps: $Env:CWD = (Get-Location).path;
-  - ps: wget "http://sqlsrv.drupal.org/"
-  # Enable Regex
-  - cmd: |
-      cd %APPVEYOR_BUILD_FOLDER%\tests\
-      call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\Tools\VsDevCmd.bat"
-      csc.exe /target:library /out:RegEx.dll regex.cs
-  - ps: Invoke-Sqlcmd -Database mydrupalsite -Username sa -Password "Password12!" -Query "EXEC sp_configure 'show advanced options', 1; RECONFIGURE; EXEC sp_configure 'clr strict security', 0; RECONFIGURE; EXEC sp_configure 'clr enable', 1; RECONFIGURE"
-  - ps: Invoke-Sqlcmd -Database mydrupalsite -Username sa -Password "Password12!" -Query "CREATE ASSEMBLY Regex from '$Env:APPVEYOR_BUILD_FOLDER\tests\RegEx.dll' WITH PERMISSION_SET = SAFE"
-  - ps: Invoke-Sqlcmd -Database mydrupalsite -Username sa -Password "Password12!" -Query "CREATE FUNCTION dbo.REGEXP(@pattern NVARCHAR(100), @matchString NVARCHAR(100)) RETURNS bit EXTERNAL NAME Regex.RegExCompiled.RegExCompiledMatch"
+  # Copy in the module
+  - cmd: xcopy /S /I /E /Y %APPVEYOR_BUILD_FOLDER%\dev\appveyor\TestSuites %APPVEYOR_BUILD_FOLDER%\tests\src\TestSuites
+  - cmd: xcopy /S /I /E /Y %APPVEYOR_BUILD_FOLDER% %cd%\modules\contrib\sqlsrv
+  - cmd: xcopy /S /I /E /Y %APPVEYOR_BUILD_FOLDER%\drivers %cd%\drivers
+  - cmd: cd /d C:\projects\drupal-project
+  - cmd: mkdir C:\projects\drupal-project\sites\simpletest
 build_script:
-  - cmd: echo "No build"
+  # Override core condition
+  - ps: (New-Object Net.WebClient).DownloadFile('https://www.drupal.org/files/issues/2020-03-10/3113403-33.patch', 'C:\projects\drupal-project\3113403-33.patch')
+  - cmd: git apply 3113403-33.patch
+  # Logger backtrace incorrect. pushed to 9.x
+  - ps: (New-Object Net.WebClient).DownloadFile('https://www.drupal.org/files/issues/2020-05-27/2867788-92.patch', 'C:\projects\drupal-project\2867788-92.patch')
+  # core Condition not able to be overridden in views...needs work. 
+  - ps: (New-Object Net.WebClient).DownloadFile('https://www.drupal.org/files/issues/2020-05-04/3130655-10.patch', 'C:\projects\drupal-project\3130655-10.patch')
+  - cmd: git apply 2867788-92.patch
+  - cmd: git apply 3130655-10.patch
+  # Testing-only patches
+  # directory separator
+  - ps: (New-Object Net.WebClient).DownloadFile('https://www.drupal.org/files/issues/2020-06-11/3150731-11.patch', 'C:\projects\drupal-project\3150731-11.patch')
+  - cmd: git apply 3150731-11.patch
+  # view sort order bug
+  - ps: (New-Object Net.WebClient).DownloadFile('https://www.drupal.org/files/issues/2020-06-05/3146016-3.patch', 'C:\projects\drupal-project\3146016-3.patch')
+  - cmd: git apply 3146016-3.patch
+  # Fix format of deprecation notices for phpcs 
+  - ps: (New-Object Net.WebClient).DownloadFile('https://www.drupal.org/files/issues/2020-02-25/3108540-11.patch', 'C:\projects\drupal-project\3108540-11.patch')
+  # Add a sqlsrv-specific datatype to test
+  - ps: (New-Object Net.WebClient).DownloadFile('https://www.drupal.org/files/issues/2020-02-05/drupal-3111134-database_specific_types-3.patch', 'C:\projects\drupal-project\drupal-3111134-database_specific_types-3.patch')
+  # Enable sqlsrv module in specific kernel tests
+  - ps: (New-Object Net.WebClient).DownloadFile('https://www.drupal.org/files/issues/2020-05-02/2966272-16.patch', 'C:\projects\drupal-project\2966272-16.patch')
+  - cmd: git apply 2966272-16.patch
+  - cmd: git apply drupal-3111134-database_specific_types-3.patch
+  - cmd: git apply 3108540-11.patch
 before_test:
   - cmd: cd C:\projects\drupal-project
-  # Enable pcov extension
-  - ps: Add-Content $env:SITERUNTIMEPATH\php\php.ini "extension=php_pcov.dll"
-  - ps: Add-Content $env:SITERUNTIMEPATH\php\php.ini "pcov.enabled = 1"
-  # Install composer packages for dev
-  - cmd: composer require pcov/clobber --dev
-  - cmd: composer config repositories.php-coveralls git https://github.com/Beakerboy/php-coveralls.git
-  - cmd: composer require beakerboy/php-coveralls dev-bugfix
-  # Clobber existing vendor phpunit files.  Needed for phpunit 7.x
-  - cmd: pcov clobber
-  # Move custom test script to core
   - cmd: cd %APPVEYOR_BUILD_FOLDER%
-  - cmd: cp tests\phpunit.xml.dist C:\projects\drupal-project\web\core\phpunit.xml
+  - cmd: cp dev\travis\phpunit.xml.dist C:\projects\drupal-project\core\phpunit.xml
   - cmd: mkdir .\build\logs
-  # Associate Drupal coding standard into phpcs
-  - cmd: phpcs --config-set installed_paths C:\projects\drupal-project\vendor\drupal\coder\coder_sniffer
-  #- cmd: composer require pcov/clobber --dev
 test_script:
-  - cmd: cd C:\projects\drupal-project\web
-  - cmd: phpunit -c core\phpunit.xml --testsuite=database,sqlsrv --coverage-clover %APPVEYOR_BUILD_FOLDER%\build\logs\clover.xml
-  - cmd: cd %APPVEYOR_BUILD_FOLDER%
-  #- cmd: phpcs --standard=Drupal .
-  #- cms: phpstan analyze drivers --level 7
-after_test:
-  - cmd: cd %APPVEYOR_BUILD_FOLDER%
-  # Change file path locations from prod to src in the clover results.
-  - ps: ((Get-Content build\logs\clover.xml -Raw) -replace 'drupal\-project\\web\\modules\\contrib', '') | Set-Content build\logs\clover.xml
-  - ps: ((Get-Content build\logs\clover.xml -Raw) -replace 'drupal\-project\\web', 'sqlsrv') | Set-Content build\logs\clover.xml
-  - cmd: php-coveralls -v
+  - cmd: cd C:\projects\drupal-project
+  - cmd: phpunit -vvv -c core\phpunit.xml --testsuite=%TEST_SUITE%

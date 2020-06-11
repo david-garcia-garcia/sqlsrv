@@ -18,12 +18,6 @@ use Drupal\Core\Database\TransactionNameNonUniqueException;
 
 /**
  * Sqlsvr implementation of \Drupal\Core\Database\Connection.
- *
- * Temporary tables: temporary table support is done by means of global
- * temporary tables (#) to avoid the use of DIRECT QUERIES. You can enable and
- * disable the use of direct queries with:
- * $this->driver_settings->defaultDirectQuery = TRUE|FALSE.
- * http://blogs.msdn.com/b/brian_swan/archive/2010/06/15/ctp2-of-microsoft-driver-for-php-for-sql-server-released.aspx.
  */
 class Connection extends DatabaseConnection {
 
@@ -37,27 +31,11 @@ class Connection extends DatabaseConnection {
   protected $schema = NULL;
 
   /**
-   * Database driver settings.
-   *
-   * Should be renamed to driverSettings.
-   *
-   * @var \Drupal\Driver\Database\sqlsrv\DriverSettings
-   */
-  public $driverSettings;
-
-  /**
    * Error code for Login Failed.
    *
    * Usually happens when the database does not exist.
    */
   const DATABASE_NOT_FOUND = 28000;
-
-  /**
-   * Prepared PDO statements only makes sense if we cache them...
-   *
-   * @var mixed
-   */
-  private $statementCache = [];
 
   /**
    * This is the original replacement regexp from Microsoft.
@@ -178,20 +156,18 @@ class Connection extends DatabaseConnection {
   ];
 
   /**
-   * A map of condition operators to sqlsrv operators.
+   * The temporary table prefix.
    *
-   * SQL Server doesn't need special escaping for the \ character in a string
-   * literal, because it uses '' to escape the single quote, not \'.
-   *
-   * @var array
+   * @var string
    */
-  protected static $sqlsrvConditionOperatorMap = [
-    // These can be changed to 'LIKE' => ['postfix' => " ESCAPE '\\'"],
-    // if https://bugs.php.net/bug.php?id=79276 is fixed.
-    'LIKE' => [],
-    'NOT LIKE' => [],
-    'LIKE BINARY' => ['operator' => 'LIKE'],
-  ];
+  protected $tempTablePrefix = '#';
+
+  /**
+   * The connection's unique key for global temporary tables.
+   *
+   * @var string
+   */
+  protected $tempKey;
 
   /**
    * {@inheritdoc}
@@ -208,17 +184,7 @@ class Connection extends DatabaseConnection {
    * {@inheritdoc}
    */
   public function queryTemporary($query, array $args = [], array $options = []) {
-    // Generate a new GLOBAL temporary table name and protect it from prefixing.
-    // SQL Server requires that temporary tables to be non-qualified.
-    $tablename = '##' . $this->generateTemporaryTableName();
-    // Temporary tables cannot be introspected so using them is limited on some
-    // scenarios.
-    if (isset($options['real_table']) && $options['real_table'] === TRUE) {
-      $tablename = trim($tablename, "#");
-    }
-    $prefixes = $this->prefixes;
-    $prefixes[$tablename] = '';
-    $this->setPrefix($prefixes);
+    $tablename = $this->generateTemporaryTableName();
 
     // Having comments in the query can be tricky and break the
     // SELECT FROM  -> SELECT INTO conversion.
@@ -227,7 +193,7 @@ class Connection extends DatabaseConnection {
     $query = $schema->removeSQLComments($query);
 
     // Replace SELECT xxx FROM table by SELECT xxx INTO #table FROM table.
-    $query = preg_replace('/^SELECT(.*?)FROM/is', 'SELECT$1 INTO ' . $tablename . ' FROM', $query);
+    $query = preg_replace('/^SELECT(.*?)FROM/is', 'SELECT$1 INTO {' . $tablename . '} FROM', $query);
     $this->query($query, $args, $options);
 
     return $tablename;
@@ -256,7 +222,7 @@ class Connection extends DatabaseConnection {
 
     try {
       // Create the database and set it as active.
-      $this->connection->exec("CREATE DATABASE $database COLLATE " . Schema::DEFAULT_COLLATION_CI);
+      $this->connection->exec("CREATE DATABASE $database");
     }
     catch (DatabaseException $e) {
       throw new DatabaseNotFoundException($e->getMessage());
@@ -297,9 +263,6 @@ class Connection extends DatabaseConnection {
    * {@inheritdoc}
    */
   public function __construct(\PDO $connection, array $connection_options) {
-    // Initialize settings.
-    $this->driverSettings = DriverSettings::instanceFromSettings();
-
     $connection->setAttribute(\PDO::ATTR_STRINGIFY_FETCHES, TRUE);
     parent::__construct($connection, $connection_options);
 
@@ -314,6 +277,105 @@ class Connection extends DatabaseConnection {
 
   /**
    * {@inheritdoc}
+   *
+   * Adding schema to the connection URL.
+   */
+  public static function createConnectionOptionsFromUrl($url, $root) {
+    $database = parent::createConnectionOptionsFromUrl($url, $root);
+    $url_components = parse_url($url);
+    if (isset($url_components['query'])) {
+      $query = [];
+      parse_str($url_components['query'], $query);
+      if (isset($query['schema'])) {
+        $database['schema'] = $query['schema'];
+      }
+      $database['cache_schema'] = isset($query['cache_schema']) && $query['cache_schema'] == 'true' ? TRUE : FALSE;
+    }
+    return $database;
+  }
+
+  /**
+   * {@inheritdoc}
+   *
+   * Adding schema to the connection URL.
+   */
+  public static function createUrlFromConnectionOptions(array $connection_options) {
+    if (!isset($connection_options['driver'], $connection_options['database'])) {
+      throw new \InvalidArgumentException("As a minimum, the connection options array must contain at least the 'driver' and 'database' keys");
+    }
+
+    $user = '';
+    if (isset($connection_options['username'])) {
+      $user = $connection_options['username'];
+      if (isset($connection_options['password'])) {
+        $user .= ':' . $connection_options['password'];
+      }
+      $user .= '@';
+    }
+
+    $host = empty($connection_options['host']) ? 'localhost' : $connection_options['host'];
+
+    $db_url = $connection_options['driver'] . '://' . $user . $host;
+
+    if (isset($connection_options['port'])) {
+      $db_url .= ':' . $connection_options['port'];
+    }
+
+    $db_url .= '/' . $connection_options['database'];
+    $query = [];
+    if (isset($connection_options['module'])) {
+      $query['module'] = $connection_options['module'];
+    }
+    if (isset($connection_options['schema'])) {
+      $query['schema'] = $connection_options['schema'];
+    }
+    if (isset($connection_options['cache_schema'])) {
+      $query['cache_schema'] = $connection_options['cache_schema'];
+    }
+
+    if (count($query) > 0) {
+      $parameters = [];
+      foreach ($query as $key => $values) {
+        $parameters[] = $key . '=' . $values;
+      }
+      $query_string = implode("&amp;", $parameters);
+      $db_url .= '?' . $query_string;
+    }
+    if (isset($connection_options['prefix']['default']) && $connection_options['prefix']['default'] !== '') {
+      $db_url .= '#' . $connection_options['prefix']['default'];
+    }
+
+    return $db_url;
+  }
+
+  /**
+   * {@inheritdoc}
+   *
+   * Encapsulates field names in brackets when necessary.
+   */
+  public function escapeField($field) {
+    $field = parent::escapeField($field);
+    return $this->quoteIdentifier($field);
+  }
+
+  /**
+   * {@inheritdoc}
+   *
+   * Allowing local or global temp tables.
+   */
+  protected function generateTemporaryTableName() {
+    // In case the user changes to global temp tables.
+    if (!isset($this->tempKey)) {
+      $this->tempKey = md5(rand());
+    }
+    $tablename = parent::generateTemporaryTableName() . '_' . $this->tempKey;
+    return $tablename;
+  }
+
+  /**
+   * {@inheritdoc}
+   *
+   * Including schema name.
    */
   public function getFullQualifiedTableName($table) {
     $options = $this->getConnectionOptions();
@@ -324,11 +386,10 @@ class Connection extends DatabaseConnection {
 
   /**
    * {@inheritdoc}
+   *
+   * Uses SQL Server format.
    */
   public static function open(array &$connection_options = []) {
-
-    // Get driver settings.
-    $driverSettings = DriverSettings::instanceFromSettings();
 
     // Build the DSN.
     $options = [];
@@ -338,11 +399,6 @@ class Connection extends DatabaseConnection {
     // database creation in Install.
     if (!empty($connection_options['database'])) {
       $options['Database'] = $connection_options['database'];
-    }
-
-    // Set isolation level if specified.
-    if ($level = $driverSettings->GetDefaultIsolationLevel()) {
-      $options['TransactionIsolation'] = $level;
     }
 
     // Build the DSN.
@@ -377,73 +433,47 @@ class Connection extends DatabaseConnection {
   }
 
   /**
-   * Temporary override of DatabaseConnection::prepareQuery().
+   * Prepares a query string and returns the prepared statement.
    *
-   * @todo: remove that when DatabaseConnection::prepareQuery() is fixed to call
-   *   $this->prepare() and not parent::prepare().
-   *   https://www.drupal.org/node/2345451
-   * @status: tested, temporary
+   * This method caches prepared statements, reusing them when
+   * possible. It also prefixes tables names enclosed in curly-braces.
+   *
+   * @param string $query
+   *   The query string as SQL, with curly-braces surrounding the
+   *   table names.
+   * @param array $options
+   *   An array ooptions to determine which PDO Parameters
+   *   should be used.
+   *
+   * @return \Drupal\Core\Database\Statement
+   *   A PDO prepared statement ready for its execute() method.
    */
   public function prepareQuery($query, array $options = []) {
+    $default_options = [
+      'emulate_prepares' => FALSE,
+      'bypass_preprocess' => FALSE,
+    ];
 
     // Merge default statement options. These options are
     // only specific for this preparation and will only override
     // the global configuration if set to different than NULL.
-    $options = array_merge([
-      'insecure' => FALSE,
-      'statement_caching' => $this->driverSettings->GetStatementCachingMode(),
-      'direct_query' => $this->driverSettings->GetDefaultDirectQueries(),
-      'prefix_tables' => TRUE,
-    ], $options);
+    $options += $default_options;
 
-    // Prefix tables. There is no global setting for this.
-    if ($options['prefix_tables'] !== FALSE) {
-      $query = $this->prefixTables($query);
+    $query = $this->prefixTables($query);
+
+    // Preprocess the query.
+    if (!$options['bypass_preprocess']) {
+      $query = $this->preprocessQuery($query);
     }
 
-    // The statement caching settings only affect the storage
-    // in the cache, but if a statement is already available
-    // why not reuse it!
-    if (isset($this->statementCache[$query])) {
-      return $this->statementCache[$query];
-    }
+    $driver_options = [];
 
-    // Region PDO Options.
-    $pdo_options = [];
-
-    // Set insecure options if requested so.
-    if ($options['insecure'] === TRUE) {
-      // We have to log this, prepared statements are a security RISK.
-      // watchdog(
-      // 'SQL Server Driver',
-      // 'An insecure query has been executed against the database.'
-      // . 'This is not critical, but worth looking into: %query',
-      // array('%query' => $query)
-      // );
-      // These are defined in class Connection.
-      // This PDO options are INSECURE, but will overcome the following issues:
-      // (1) Duplicate placeholders
-      // (2) > 2100 parameter limit
-      // (3) Using expressions for group by with parameters are not detected as
-      // equal. This options are not applied by default, they are just stored in
-      // the connection options and applied when needed. See {Statement} class.
-      // We ask PDO to perform the placeholders replacement itself because SQL
-      // Server is not able to detect duplicated placeholders in complex
-      // statements.
-      // E.g. This query is going to fail because SQL Server cannot
-      // detect that length1 and length2 are equals.
-      // SELECT SUBSTRING(title, 1, :length1)
-      // FROM node
-      // GROUP BY SUBSTRING(title, 1, :length2
-      // This is only going to work in PDO 3 but doesn't hurt in PDO 2. The
-      // security of parameterized queries is not in effect when you use
-      // PDO::ATTR_EMULATE_PREPARES => true. Your application should ensure that
-      // the data that is bound to the parameter(s) does not contain malicious
-      //
-      // Transact-SQL code.
+    if ($options['emulate_prepares'] === TRUE) {
       // Never use this when you need special column binding.
-      // THIS ONLY WORKS IF SET AT THE STATEMENT LEVEL.
-      $pdo_options[\PDO::ATTR_EMULATE_PREPARES] = TRUE;
+      // Unlike other PDO drivers, sqlsrv requires this attribute be set
+      // on the statement, not the connection.
+      $driver_options[\PDO::ATTR_EMULATE_PREPARES] = TRUE;
+      $driver_options[\PDO::SQLSRV_ATTR_ENCODING] = \PDO::SQLSRV_ENCODING_UTF8;
     }
 
     // We run the statements in "direct mode" because the way PDO prepares
@@ -456,167 +486,118 @@ class Connection extends DatabaseConnection {
     // If a query requires the context that was set in a previous query,
     // you should execute your queries with PDO::SQLSRV_ATTR_DIRECT_QUERY set to
     // True. For example, if you use temporary tables in your queries,
-    // PDO::SQLSRV_ATTR_DIRECT_QUERY must be set to True.
-    if ($this->driverSettings->GetStatementCachingMode() != 'always' || $options['direct_query'] == TRUE) {
-      $pdo_options[\PDO::SQLSRV_ATTR_DIRECT_QUERY] = TRUE;
-    }
+    // PDO::SQLSRV_ATTR_DrIRECT_QUERY must be set to True.
+    $driver_options[\PDO::SQLSRV_ATTR_DIRECT_QUERY] = TRUE;
 
     // It creates a cursor for the query, which allows you to iterate over the
     // result set without fetching the whole result at once. A scrollable
     // cursor, specifically, is one that allows iterating backwards.
     // https://msdn.microsoft.com/en-us/library/hh487158%28v=sql.105%29.aspx
-    $pdo_options[\PDO::ATTR_CURSOR] = \PDO::CURSOR_SCROLL;
+    $driver_options[\PDO::ATTR_CURSOR] = \PDO::CURSOR_SCROLL;
 
     // Lets you access rows in any order. Creates a client-side cursor query.
-    $pdo_options[\PDO::SQLSRV_ATTR_CURSOR_SCROLL_TYPE] = \PDO::SQLSRV_CURSOR_BUFFERED;
+    $driver_options[\PDO::SQLSRV_ATTR_CURSOR_SCROLL_TYPE] = \PDO::SQLSRV_CURSOR_BUFFERED;
 
-    // Endregion
-    // Call our overriden prepare.
-    $stmt = $this->PDOPrepare($query, $pdo_options);
-
-    // If statement caching is enabled, store current statement for reuse.
-    if ($options['statement_caching'] === TRUE) {
-      $this->statementCache[$query] = $stmt;
-    }
-
+    /** @var \Drupal\Core\Database\Statement $stmt */
+    $stmt = $this->connection->prepare($query, $driver_options);
     return $stmt;
   }
 
   /**
-   * Internal function: prepare a query by calling PDO directly.
-   *
-   * This function has to be public because it is called by other parts of the
-   * database layer, but do not call it directly, as you risk locking down the
-   * PHP process.
-   *
-   * @param mixed $query
-   *   The query to prepare.
-   * @param array $options
-   *   Query options.
-   *
-   * @return mixed
-   *   Prepared query.
-   */
-  public function pdoPrepare($query, array $options = []) {
-
-    // Preprocess the query.
-    if (!$this->driverSettings->GetDeafultBypassQueryPreprocess()) {
-      $query = $this->preprocessQuery($query);
-    }
-
-    // You can set the MSSQL_APPEND_CALLSTACK_COMMENT to TRUE
-    // to append to each query, in the form of comments, the current
-    // backtrace plus other details that aid in debugging deadlocks
-    // or long standing locks. Use in combination with MSSQL profiler.
-    global $conf;
-    if ($this->driverSettings->GetAppendCallstackComment()) {
-      $oUser = \Drupal::currentUser();
-      $uid = NULL;
-      if ($oUser != NULL) {
-        $uid = $oUser->getAccount()->id();
-      }
-      $trim = strlen(DRUPAL_ROOT);
-      $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
-      static $request_id;
-      if (empty($request_id)) {
-        $request_id = uniqid('', TRUE);
-      }
-      // Remove las item (it's alwasy PDOPrepare)
-      $trace = array_splice($trace, 1);
-      $comment = PHP_EOL . PHP_EOL;
-      $comment .= '-- uid:' . (($uid) ? $uid : 'NULL') . PHP_EOL;
-      $uri = (isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : 'none');
-      $uri = preg_replace("/[^a-zA-Z0-9]/i", "_", $uri);
-      $comment .= '-- url:' . $uri . PHP_EOL;
-      // $comment .= '-- request_id:' . $request_id . PHP_EOL;
-      foreach ($trace as $t) {
-        $function = isset($t['function']) ? $t['function'] : '';
-        $file = '';
-        if (isset($t['file'])) {
-          $len = strlen($t['file']);
-          if ($len > $trim) {
-            $file = substr($t['file'], $trim, $len - $trim) . " [{$t['line']}]";
-          }
-        }
-        $comment .= '-- ' . str_pad($function, 35) . '  ' . $file . PHP_EOL;
-      }
-      $query = $comment . PHP_EOL . $query;
-    }
-
-    return parent::prepare($query, $options);
-  }
-
-  /**
-   * Replace reserved words.
-   *
-   * This method gets called between 3,000 and 10,000 times
-   * on cold caches. Make sure it is simple and fast.
-   *
-   * @param mixed $matches
-   *   What is this?
-   *
-   * @return string
-   *   The match surrounded with brackets.
-   */
-  protected function replaceReservedCallback($matches) {
-    if ($matches[1] !== '') {
-      // Replace reserved words. We are not calling
-      // quoteIdentifier() on purpose.
-      return '[' . $matches[1] . ']';
-    }
-    // Let other value passthru.
-    // by the logic of the regex above, this will always be the last match.
-    return end($matches);
-  }
-
-  /**
-   * Quotes an identifier if it matches a SQL Server reserved keyword.
-   *
-   * @param string $identifier
-   *   The field to check.
-   *
-   * @return string
-   *   The identifier, quoted if it matches a SQL Server reserved keyword.
-   */
-  protected function quoteIdentifier($identifier) {
-    if (strpos($identifier, '.') !== FALSE) {
-      list($table, $identifier) = explode('.', $identifier, 2);
-    }
-    if (in_array(strtolower($identifier), $this->reservedKeyWords, TRUE)) {
-      // Quote the string for SQLServer reserved keywords.
-      $identifier = '[' . $identifier . ']';
-    }
-    return isset($table) ? $table . '.' . $identifier : $identifier;
-  }
-
-  /**
    * {@inheritdoc}
+   *
+   * SQL Server does not support RELEASE SAVEPOINT.
    */
-  public function escapeField($field) {
-    $field = parent::escapeField($field);
-    return $this->quoteIdentifier($field);
+  protected function popCommittableTransactions() {
+    // Commit all the committable layers.
+    foreach (array_reverse($this->transactionLayers) as $name => $active) {
+      // Stop once we found an active transaction.
+      if ($active) {
+        break;
+      }
+      // If there are no more layers left then we should commit.
+      unset($this->transactionLayers[$name]);
+      if (empty($this->transactionLayers)) {
+        $this->doCommit();
+      }
+      else {
+        // Nothing to do in SQL Server.
+      }
+    }
   }
 
   /**
    * {@inheritdoc}
    *
-   * Because we are using global temporary tables, these are visible between
-   * connections so we need to make sure that their names are as unique as
-   * possible to prevent collisions.
+   * Using SQL Server query syntax.
    */
-  protected function generateTemporaryTableName() {
-    static $temp_key;
-    if (!isset($temp_key)) {
-      $temp_key = strtoupper(md5(uniqid("", TRUE)));
+  public function pushTransaction($name) {
+    if (!$this->supportsTransactions()) {
+      return;
     }
-    return "db_temp_" . $this->temporaryNameIndex++ . '_' . $temp_key;
+    if (isset($this->transactionLayers[$name])) {
+      throw new TransactionNameNonUniqueException($name . " is already in use.");
+    }
+    // If we're already in a transaction then we want to create a savepoint
+    // rather than try to create another transaction.
+    if ($this->inTransaction()) {
+      $this->queryDirect('SAVE TRANSACTION ' . $name);
+    }
+    else {
+      $this->connection->beginTransaction();
+    }
+    $this->transactionLayers[$name] = $name;
   }
 
   /**
-   * {@inheritdoc}
+   * Executes a query string against the database.
    *
-   * This method is overriden to manage the insecure (EMULATE_PREPARE)
+   * This method provides a central handler for the actual execution of every
+   * query. All queries executed by Drupal are executed as PDO prepared
+   * statements.
+   *
+   * This method is overriden to manage EMULATE_PREPARE
    * behaviour to prevent some compatibility issues with SQL Server.
+   *
+   * @param string|\Drupal\Core\Database\Statement $query
+   *   The query to execute. In most cases this will be a string containing
+   *   an SQL query with placeholders. An already-prepared instance of
+   *   StatementInterface may also be passed in order to allow calling
+   *   code to manually bind variables to a query. If a
+   *   StatementInterface is passed, the $args array will be ignored.
+   *   It is extremely rare that module code will need to pass a statement
+   *   object to this method. It is used primarily for database drivers for
+   *   databases that require special LOB field handling.
+   * @param array $args
+   *   An array of arguments for the prepared statement. If the prepared
+   *   statement uses ? placeholders, this array must be an indexed array.
+   *   If it contains named placeholders, it must be an associative array.
+   * @param mixed $options
+   *   An associative array of options to control how the query is run. The
+   *   given options will be merged with self::defaultOptions(). See the
+   *   documentation for self::defaultOptions() for details.
+   *   Typically, $options['return'] will be set by a default or by a query
+   *   builder, and should not be set by a user.
+   *
+   * @return \Drupal\Core\Database\Statement|int|string|null
+   *   This method will return one of the following:
+   *   - If either $options['return'] === self::RETURN_STATEMENT, or
+   *     $options['return'] is not set (due to self::defaultOptions()),
+   *     returns the executed statement.
+   *   - If $options['return'] === self::RETURN_AFFECTED,
+   *     returns the number of rows affected by the query
+   *     (not the number matched).
+   *   - If $options['return'] === self::RETURN_INSERT_ID,
+   *     returns the generated insert ID of the last query.
+   *   - If either $options['return'] === self::RETURN_NULL, or
+   *     an exception occurs and $options['throw_exception'] evaluates to FALSE,
+   *     returns NULL.
+   *
+   * @throws \Drupal\Core\Database\DatabaseExceptionWrapper
+   * @throws \Drupal\Core\Database\IntegrityConstraintViolationException
+   * @throws \InvalidArgumentException
+   *
+   * @see \Drupal\Core\Database\Connection::defaultOptions()
    */
   public function query($query, array $args = [], $options = []) {
 
@@ -642,15 +623,15 @@ class Connection extends DatabaseConnection {
           throw new \InvalidArgumentException('; is not supported in SQL strings. Use only one statement at a time.');
         }
 
-        $insecure = isset($options['insecure']) ? $options['insecure'] : FALSE;
+        $emulate = isset($options['emulate_prepares']) ? $options['emulate_prepares'] : FALSE;
         // Try to detect duplicate place holders, this check's performance
         // is not a good addition to the driver, but does a good job preventing
         // duplicate placeholder errors.
         $argcount = count($args);
-        if ($insecure === TRUE || $argcount >= 2100 || ($argcount != substr_count($query, ':'))) {
-          $insecure = TRUE;
+        if ($emulate === TRUE || $argcount >= 2100 || ($argcount != substr_count($query, ':'))) {
+          $emulate = TRUE;
         }
-        $stmt = $this->prepareQuery($query, ['insecure' => $insecure]);
+        $stmt = $this->prepareQuery($query, ['emulate_prepares' => $emulate]);
         $stmt->execute($args, $options);
       }
 
@@ -681,195 +662,6 @@ class Connection extends DatabaseConnection {
       // value will be the same as for static::query().
       return $this->handleQueryException($e, $query, $args, $options);
     }
-  }
-
-  /**
-   * Like query but with no insecure detection or query preprocessing.
-   *
-   * The caller is sure that the query is MS SQL compatible! Used internally
-   * from the schema class, but could be called from anywhere.
-   *
-   * @param mixed $query
-   *   Query.
-   * @param array $args
-   *   Query arguments.
-   * @param mixed $options
-   *   Query options.
-   *
-   * @throws \PDOException
-   *
-   * @return mixed
-   *   Query result.
-   */
-  public function queryDirect($query, array $args = [], $options = []) {
-
-    // Use default values if not already set.
-    $options += $this->defaultOptions();
-    $stmt = NULL;
-
-    try {
-
-      // Bypass query preprocessing and use direct queries.
-      $ctx = new Context($this, TRUE, TRUE);
-
-      $stmt = $this->prepareQuery($query, $options);
-      $stmt->execute($args, $options);
-
-      // Reset the context settings.
-      unset($ctx);
-
-      // Depending on the type of query we may need to return a different value.
-      // See DatabaseConnection::defaultOptions() for a description of each
-      // value.
-      switch ($options['return']) {
-        case Database::RETURN_STATEMENT:
-          return $stmt;
-
-        case Database::RETURN_AFFECTED:
-          $stmt->allowRowCount = TRUE;
-          return $stmt->rowCount();
-
-        case Database::RETURN_INSERT_ID:
-          return $this->connection->lastInsertId();
-
-        case Database::RETURN_NULL:
-          return NULL;
-
-        default:
-          throw new \PDOException('Invalid return directive: ' . $options['return']);
-      }
-    }
-    catch (\PDOException $e) {
-      // Most database drivers will return NULL here, but some of them
-      // (e.g. the SQLite driver) may need to re-run the query, so the return
-      // value will be the same as for static::query().
-      return $this->handleQueryException($e, $query, $args, $options);
-    }
-  }
-
-  // phpcs:disable
-  /**
-   * Like query but with no insecure detection or query preprocessing.
-   *
-   * The caller is sure that the query is MS SQL compatible! Used internally
-   * from the schema class, but could be called from anywhere.
-   *
-   * @param mixed $query
-   *   Query.
-   * @param array $args
-   *   Query arguments.
-   * @param mixed $options
-   *   Query options.
-   *
-   * @throws \PDOException
-   *
-   * @return mixed
-   *   Query result.
-   *
-   * @deprecated in 8.x-1.0-rc6 and is removed from 8.x-1.0
-   * @see https://www.drupal.org/project/sqlsrv/issues/3108368
-   */
-  public function query_direct($query, array $args = [], $options = []) {
-    return $this->queryDirect($query, $args, $options);
-  }
-  // phpcs:enable
-
-  /**
-   * Internal function: massage a query to make it compliant with SQL Server.
-   */
-  public function preprocessQuery($query) {
-    // Generate a cache signature for this query.
-    $query_signature = 'query_cache_' . md5($query);
-
-    // Drill through everything...
-    $success = FALSE;
-    $cache = '';
-    if (extension_loaded('wincache')) {
-      $cache = wincache_ucache_get($query_signature, $success);
-    }
-    elseif (extension_loaded('apcu') && (PHP_SAPI !== 'cli' || (bool) ini_get('apc.enable_cli'))) {
-      $cache = apcu_fetch($query_signature, $success);
-    }
-    if ($success) {
-      return $cache;
-    }
-
-    // Force quotes around some SQL Server reserved keywords.
-    if (preg_match('/^SELECT/i', $query)) {
-      $query = preg_replace_callback(self::RESERVED_REGEXP, [$this, 'replaceReservedCallback'], $query);
-    }
-
-    // Last chance to modify some SQL Server-specific syntax.
-    $replacements = [];
-
-    // Add prefixes to Drupal-specific functions.
-    /** @var \Drupal\Driver\Database\sqlsrv\Schema $schema */
-    $schema = $this->schema();
-    $defaultSchema = $schema->GetDefaultSchema();
-    foreach ($schema->DrupalSpecificFunctions() as $function) {
-      $replacements['/\b(?<![:.])(' . preg_quote($function) . ')\(/i'] = "{$defaultSchema}.$1(";
-    }
-
-    // Rename some functions.
-    $funcs = [
-      'LENGTH' => 'LEN',
-      'POW' => 'POWER',
-    ];
-
-    foreach ($funcs as $function => $replacement) {
-      $replacements['/\b(?<![:.])(' . preg_quote($function) . ')\(/i'] = $replacement . '(';
-    }
-
-    // Replace the ANSI concatenation operator with SQL Server poor one.
-    $replacements['/\|\|/'] = '+';
-
-    // Now do all the replacements at once.
-    $query = preg_replace(array_keys($replacements), array_values($replacements), $query);
-
-    // Store the processed query, and make sure we expire it some time
-    // so that scarcely used queries don't stay in the cache forever.
-    if (extension_loaded('wincache')) {
-      wincache_ucache_set($query_signature, $query, rand(600, 3600));
-    }
-    elseif (extension_loaded('apcu') && (PHP_SAPI !== 'cli' || (bool) ini_get('apc.enable_cli'))) {
-      apcu_store($query_signature, $query, rand(600, 3600));
-    }
-
-    return $query;
-  }
-
-  /**
-   * {@inheritdoc}
-   *
-   * Includes special handling for temporary tables.
-   */
-  public function escapeTable($table) {
-    // A static cache is better suited for this.
-    static $tables = [];
-    if (isset($tables[$table])) {
-      return $tables[$table];
-    }
-
-    // Rescue the # prefix from the escaping.
-    $is_temporary = $table[0] == '#';
-    $is_temporary_global = $is_temporary && isset($table[1]) && $table[1] == '#';
-
-    // Any temporary table prefix will be removed.
-    $result = preg_replace('/[^A-Za-z0-9_.]+/', '', $table);
-
-    // Restore the temporary prefix.
-    if ($is_temporary) {
-      if ($is_temporary_global) {
-        $result = '##' . $result;
-      }
-      else {
-        $result = '#' . $result;
-      }
-    }
-
-    $tables[$table] = $result;
-
-    return $result;
   }
 
   /**
@@ -927,64 +719,233 @@ class Connection extends DatabaseConnection {
   /**
    * {@inheritdoc}
    *
-   * Using SQL Server query syntax.
+   * Adding logic for temporary tables.
    */
-  public function pushTransaction($name) {
-    if (!$this->supportsTransactions()) {
-      return;
-    }
-    if (isset($this->transactionLayers[$name])) {
-      throw new TransactionNameNonUniqueException($name . " is already in use.");
-    }
-    // If we're already in a transaction then we want to create a savepoint
-    // rather than try to create another transaction.
-    if ($this->inTransaction()) {
-      $this->queryDirect('SAVE TRANSACTION ' . $name);
-    }
-    else {
-      $this->connection->beginTransaction();
-    }
-    $this->transactionLayers[$name] = $name;
-  }
+  protected function setPrefix($prefix) {
+    parent::setPrefix($prefix);
+    // Add this to the front of the array so it is done before
+    // the default action.
+    array_unshift($this->prefixSearch, '{db_temporary_');
 
-  /**
-   * Commit all the transaction layers that can commit.
-   */
-  protected function popCommittableTransactions() {
-    // Commit all the committable layers.
-    foreach (array_reverse($this->transactionLayers) as $name => $active) {
-      // Stop once we found an active transaction.
-      if ($active) {
-        break;
-      }
-      // If there are no more layers left then we should commit.
-      unset($this->transactionLayers[$name]);
-      if (empty($this->transactionLayers)) {
-        $this->doCommit();
-      }
-      else {
-        // Nothing to do in SQL Server.
-      }
-    }
+    // If there is a period in the prefix, apply the temp prefix to the final
+    // piece.
+    $default_parts = explode('.', $this->prefixes['default']);
+    $table_part = array_pop($default_parts);
+    $default_parts[] = $this->tempTablePrefix . $table_part;
+    $full_prefix = implode('.', $default_parts);
+    array_unshift($this->prefixReplace, $full_prefix . 'db_temporary_');
   }
 
   /**
    * {@inheritdoc}
    *
-   * Adding schema to the connection URL.
+   * Adding logic for temporary tables.
    */
-  public static function createConnectionOptionsFromUrl($url, $root) {
-    $database = parent::createConnectionOptionsFromUrl($url, $root);
-    $url_components = parse_url($url);
-    if (isset($url_components['query'])) {
-      $query = [];
-      parse_str($url_components['query'], $query);
-      if (isset($query['schema'])) {
-        $database['schema'] = $query['schema'];
+  public function tablePrefix($table = 'default') {
+    if (isset($this->prefixes[$table])) {
+      return $this->prefixes[$table];
+    }
+    $temp_prefix = '';
+    if ($this->isTemporaryTable($table)) {
+      $temp_prefix = $this->tempTablePrefix;
+      // If there is a period in the prefix, apply the temp prefix to the final
+      // piece.
+      $default_parts = explode('.', $this->prefixes['default']);
+      $table_part = array_pop($default_parts);
+      $default_parts[] = $this->tempTablePrefix . $table_part;
+      return implode('.', $default_parts);
+    }
+    return $this->prefixes['default'];
+  }
+
+  /**
+   * The temporary table prefix.
+   *
+   * @return string
+   *   The temporary table prefix.
+   */
+  public function getTempTablePrefix() {
+    return $this->tempTablePrefix;
+  }
+
+  /**
+   * Is this table a temporary table?
+   *
+   * @var string $table
+   *   The table name.
+   *
+   * @return bool
+   *   True is the table is a temporary table.
+   */
+  public function isTemporaryTable($table) {
+    return stripos($table, 'db_temporary_') !== FALSE;
+  }
+
+  /**
+   * Like query but with no query preprocessing.
+   *
+   * The caller is sure that the query is MS SQL compatible! Used internally
+   * from the schema class, but could be called from anywhere.
+   *
+   * @param string $query
+   *   Query.
+   * @param array $args
+   *   Query arguments.
+   * @param mixed $options
+   *   Query options.
+   *
+   * @throws \PDOException
+   *
+   * @return mixed
+   *   Query result.
+   */
+  public function queryDirect($query, array $args = [], $options = []) {
+    // Use default values if not already set.
+    $options += $this->defaultOptions();
+    $stmt = NULL;
+
+    try {
+      // Core tests run faster without emulating.
+      $direct_query_options = [
+        'direct_query' => TRUE,
+        'bypass_preprocess' => TRUE,
+        'emulate_prepares' => FALSE,
+      ];
+      $stmt = $this->prepareQuery($query, $direct_query_options + $options);
+      $stmt->execute($args, $options);
+
+      // Depending on the type of query we may need to return a different value.
+      // See DatabaseConnection::defaultOptions() for a description of each
+      // value.
+      switch ($options['return']) {
+        case Database::RETURN_STATEMENT:
+          return $stmt;
+
+        case Database::RETURN_AFFECTED:
+          $stmt->allowRowCount = TRUE;
+          return $stmt->rowCount();
+
+        case Database::RETURN_INSERT_ID:
+          return $this->connection->lastInsertId();
+
+        case Database::RETURN_NULL:
+          return NULL;
+
+        default:
+          throw new \PDOException('Invalid return directive: ' . $options['return']);
       }
     }
-    return $database;
+    catch (\PDOException $e) {
+      // Most database drivers will return NULL here, but some of them
+      // (e.g. the SQLite driver) may need to re-run the query, so the return
+      // value will be the same as for static::query().
+      return $this->handleQueryException($e, $query, $args, $options);
+    }
   }
+
+  /**
+   * Massage a query to make it compliant with SQL Server.
+   *
+   * @param mixed $query
+   *   Query string.
+   *
+   * @return string
+   *   Query string in MS SQL format.
+   */
+  public function preprocessQuery($query) {
+    // Force quotes around some SQL Server reserved keywords.
+    if (preg_match('/^SELECT/i', $query)) {
+      $query = preg_replace_callback(self::RESERVED_REGEXP, [$this, 'replaceReservedCallback'], $query);
+    }
+
+    // Last chance to modify some SQL Server-specific syntax.
+    $replacements = [];
+
+    // Add prefixes to Drupal-specific functions.
+    /** @var \Drupal\Driver\Database\sqlsrv\Schema $schema */
+    $schema = $this->schema();
+    $defaultSchema = $schema->GetDefaultSchema();
+    foreach ($schema->DrupalSpecificFunctions() as $function) {
+      $replacements['/\b(?<![:.])(' . preg_quote($function) . ')\(/i'] = "{$defaultSchema}.$1(";
+    }
+
+    // Rename some functions.
+    $funcs = [
+      'LENGTH' => 'LEN',
+      'POW' => 'POWER',
+    ];
+
+    foreach ($funcs as $function => $replacement) {
+      $replacements['/\b(?<![:.])(' . preg_quote($function) . ')\(/i'] = $replacement . '(';
+    }
+
+    // Replace the ANSI concatenation operator with SQL Server poor one.
+    $replacements['/\|\|/'] = '+';
+
+    // Now do all the replacements at once.
+    $query = preg_replace(array_keys($replacements), array_values($replacements), $query);
+
+    return $query;
+  }
+
+  /**
+   * Quotes an identifier if it matches a SQL Server reserved keyword.
+   *
+   * @param string $identifier
+   *   The field to check.
+   *
+   * @return string
+   *   The identifier, quoted if it matches a SQL Server reserved keyword.
+   */
+  protected function quoteIdentifier($identifier) {
+    if (strpos($identifier, '.') !== FALSE) {
+      list($table, $identifier) = explode('.', $identifier, 2);
+    }
+    if (in_array(strtolower($identifier), $this->reservedKeyWords, TRUE)) {
+      // Quote the string for SQLServer reserved keywords.
+      $identifier = '[' . $identifier . ']';
+    }
+    return isset($table) ? $table . '.' . $identifier : $identifier;
+  }
+
+  /**
+   * Replace reserved words.
+   *
+   * This method gets called between 3,000 and 10,000 times
+   * on cold caches. Make sure it is simple and fast.
+   *
+   * @param mixed $matches
+   *   What is this?
+   *
+   * @return string
+   *   The match surrounded with brackets.
+   */
+  protected function replaceReservedCallback($matches) {
+    if ($matches[1] !== '') {
+      // Replace reserved words. We are not calling
+      // quoteIdentifier() on purpose.
+      return '[' . $matches[1] . ']';
+    }
+    // Let other value passthru.
+    // by the logic of the regex above, this will always be the last match.
+    return end($matches);
+  }
+
+  /**
+   * A map of condition operators to sqlsrv operators.
+   *
+   * SQL Server doesn't need special escaping for the \ character in a string
+   * literal, because it uses '' to escape the single quote, not \'.
+   *
+   * @var array
+   */
+  protected static $sqlsrvConditionOperatorMap = [
+    // These can be changed to 'LIKE' => ['postfix' => " ESCAPE '\\'"],
+    // if https://bugs.php.net/bug.php?id=79276 is fixed.
+    'LIKE' => [],
+    'NOT LIKE' => [],
+    'LIKE BINARY' => ['operator' => 'LIKE'],
+  ];
 
 }
 

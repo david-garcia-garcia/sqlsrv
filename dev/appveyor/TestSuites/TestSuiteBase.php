@@ -43,6 +43,7 @@ abstract class TestSuiteBase extends TestSuite {
     '/core/modules/language/tests/src/Functional/ConfigurableLanguageManagerTest.php',
     '/core/modules/locale/tests/src/Functional/LocaleLocaleLookupTest.php',
     '/core/modules/path/tests/src/Functional/PathAliasTest.php',
+    '/core/modules/rest/tests/src/Functional/ResourceTestBase.php',
     '/core/modules/taxonomy/tests/src/Functional/Views/TermDisplayConfigurableTest.php',
     // Update Test Failures.
     '/core/modules/block_content/tests/src/Functional/Update/BlockContentReusableUpdateTest.php',
@@ -59,6 +60,7 @@ abstract class TestSuiteBase extends TestSuite {
     '/core/modules/hal/tests/src/Functional/Update/CreateHalSettingsForLinkDomainUpdateTest.php',
     '/core/modules/hal/tests/src/Functional/Update/MigrateLinkDomainSettingFromRestToHalUpdateTest.php',
     '/core/modules/layout_builder/tests/src/Functional/Update/LayoutBuilderContextMappingUpdatePathTest.php',
+    '/core/modules/layout_builder/tests/src/Functional/Update/Translatability/MakeLayoutUntranslatableUpdatePathTestBase.php',
     '/core/modules/layout_builder/tests/src/Functional/Update/TempstoreKeyUpdatePathTest.php',
     '/core/modules/system/tests/src/Functional/Update/AutomatedCronUpdateWithAutomatedCronTest.php',
     '/core/modules/system/tests/src/Functional/Update/ConfigOverridesUpdateTest.php',
@@ -68,6 +70,7 @@ abstract class TestSuiteBase extends TestSuite {
     '/core/modules/system/tests/src/Functional/Update/MenuTreeSerializationTitleTest.php',
     '/core/modules/system/tests/src/Functional/Update/SiteBrandingConvertedIntoBlockUpdateTest.php',
     '/core/modules/system/tests/src/Functional/Update/UpdateActionsWithEntityPluginsTest.php',
+    '/core/modules/user/tests/src/Functional/Update/UserUpdateEmailToken.php',
     '/core/modules/views/tests/src/Functional/Update/CacheabilityMetadataUpdateTest.php',
     '/core/modules/workspaces/tests/src/Functional/Update/WorkspacesUpdateTest.php',
   ];
@@ -163,12 +166,12 @@ abstract class TestSuiteBase extends TestSuite {
       25, 25, 25, 30, 25,
       25, 25, 25, 25, 25,
       25, 25, 25, 25, 25,
-      25, 25, 25, 20, 20,
+      25, 25, 25, 25, 25,
       25, 25, 25, 25, 25,
       25, 25, 25, 25, 25,
       30, 25, 25, 25, 25,
       25, 25, 25, 25, 25,
-      25, 25, 25, 25,
+      25, 25, 25,
     ];
     $index = rand(0, 58);
     $length = $sizes[$index];

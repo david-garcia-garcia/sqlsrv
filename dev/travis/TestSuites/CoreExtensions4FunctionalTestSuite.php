@@ -7,7 +7,7 @@ require_once __DIR__ . '/TestSuiteBase.php';
 /**
  * Discovers tests for the kernel test suite.
  */
-final class CoreExtensions4KernelTestSuite extends TestSuiteBase {
+final class CoreExtensions4FunctionalTestSuite extends TestSuiteBase {
 
   /**
    * Factory method which loads up a suite with all kernel tests.
@@ -17,8 +17,8 @@ final class CoreExtensions4KernelTestSuite extends TestSuiteBase {
    */
   public static function suite() {
     $root = dirname(__DIR__, 6);
-    $suite = new static('kernel');
-    $suite->addExtensionTestsBySuiteNamespace($root, 'Kernel', self::$coreExtensionPatterns[3]);
+    $suite = new static('functional');
+    $suite->addExtensionTestsBySuiteNamespaceAndChunk($root, 'Functional', 3);
     return $suite;
   }
 
