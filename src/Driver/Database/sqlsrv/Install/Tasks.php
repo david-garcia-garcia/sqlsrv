@@ -30,10 +30,6 @@ class Tasks extends InstallTasks {
       'function' => 'initializeDatabase',
       'arguments' => [],
     ];
-    $this->tasks[] = [
-      'function' => 'enableModule',
-      'arguments' => [],
-    ];
   }
 
   /**
@@ -164,16 +160,6 @@ class Tasks extends InstallTasks {
   }
 
   /**
-   * Enable the SQL Server module.
-   */
-  public function enableModule() {
-    // TODO: Looks like the module hanlder service is unavailable during
-    // this installation phase?
-    // $handler = new \Drupal\Core\Extension\ModuleHandler();
-    // $handler->enable(array('sqlsrv'), FALSE);.
-  }
-
-  /**
    * {@inheritdoc}
    */
   public function getFormOptions(array $database) {
@@ -193,6 +179,12 @@ class Tasks extends InstallTasks {
       '#title' => t('Cache Schema Definitions'),
       '#description' => t('Allow the table schema to be cached. This will significantly speed up the site, but the schema must be stable.'),
       '#return_value' => 'true',
+    ];
+    $form['advanced_options']['autoload'] = [
+      '#type' => 'textfield',
+      '#title' => t('Driver Path'),
+      '#description' => t('File path - will be automatically filled in when written to the settings file.'),
+      '#default_value' => '',
     ];
     // Make username not required.
     $form['username']['#required'] = FALSE;

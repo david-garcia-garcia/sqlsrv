@@ -15,7 +15,7 @@ class Schema extends DatabaseSchema {
   /**
    * The database connection.
    *
-   * @var \Drupal\Driver\Database\sqlsrv\Connection
+   * @var \Drupal\sqlsrv\Driver\Database\sqlsrv\Connection
    */
   protected $connection;
 
@@ -360,44 +360,6 @@ class Schema extends DatabaseSchema {
   /**
    * {@inheritdoc}
    */
-  public function fieldSetDefault($table, $field, $default) {
-    @trigger_error('fieldSetDefault() is deprecated in drupal:8.7.0 and will be removed before drupal:9.0.0. Instead, call ::changeField() passing a full field specification. See https://www.drupal.org/node/2999035', E_USER_DEPRECATED);
-
-    if (!$this->fieldExists($table, $field)) {
-      throw new SchemaObjectDoesNotExistException(t("Cannot set default value of field %table.%field: field doesn't exist.", ['%table' => $table, '%field' => $field]));
-    }
-
-    $default = $this->escapeDefaultValue($default);
-
-    // Try to remove any existing default first.
-    try {
-      $this->fieldSetNoDefault($table, $field);
-    }
-    catch (\Exception $e) {
-    }
-
-    // Create the new default.
-    $this->connection->query('ALTER TABLE [{' . $table . '}] ADD CONSTRAINT {' . $table . '}_' . $field . '_df DEFAULT ' . $default . ' FOR [' . $field . ']');
-    $this->resetColumnInformation($table);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function fieldSetNoDefault($table, $field) {
-    @trigger_error('fieldSetNoDefault() is deprecated in drupal:8.7.0 and will be removed before drupal:9.0.0. Instead, call ::changeField() passing a full field specification. See https://www.drupal.org/node/2999035', E_USER_DEPRECATED);
-
-    if (!$this->fieldExists($table, $field)) {
-      throw new SchemaObjectDoesNotExistException(t("Cannot remove default value of field %table.%field: field doesn't exist.", ['%table' => $table, '%field' => $field]));
-    }
-    $prefixInfo = $this->getPrefixInfo($table, TRUE);
-    $constraint_name = $prefixInfo['table'] . '_' . $field . '_df';
-    $this->dropConstraint($table, $constraint_name, FALSE);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
   public function indexExists($table, $name) {
     $prefixInfo = $this->getPrefixInfo($table, TRUE);
     return (bool) $this->connection->query('SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(:table) AND name = :name', [
@@ -569,7 +531,7 @@ class Schema extends DatabaseSchema {
       $expand = TRUE;
     }
 
-    $this->connection->query('DROP INDEX ' . $name . '_idx ON [{' . $table . '}]');
+    $this->connection->query('DROP INDEX ' . $name . '_idx ON {' . $table . '}');
     $this->resetColumnInformation($table);
     // If we just dropped an XML index, we can re-expand the original primary
     // key index.
@@ -643,8 +605,6 @@ class Schema extends DatabaseSchema {
 
     // SQL Server supports transactional DDL, so we can just start a transaction
     // here and pray for the best.
-
-    /** @var Transaction $transaction */
     $transaction = $this->connection->startTransaction();
 
     // Prepare the specifications.
@@ -1305,14 +1265,14 @@ EOF
     if ($nullable || $size >= $limit) {
       // Use a computed column instead, and create a custom index.
       $result[] = self::COMPUTED_PK_COLUMN_NAME . " AS (CONVERT(VARCHAR(32), HASHBYTES('MD5', CONCAT('',{$csv_fields})), 2)) PERSISTED NOT NULL";
-      $result[] = "CONSTRAINT {{$table}}_pkey PRIMARY KEY CLUSTERED (" . self::COMPUTED_PK_COLUMN_NAME . ")";
+      $result[] = "CONSTRAINT {{$table}_pkey} PRIMARY KEY CLUSTERED (" . self::COMPUTED_PK_COLUMN_NAME . ")";
       $index = TRUE;
     }
     else {
-      $result[] = "CONSTRAINT {{$table}}_pkey PRIMARY KEY CLUSTERED ({$csv_fields})";
+      $result[] = "CONSTRAINT {{$table}_pkey} PRIMARY KEY CLUSTERED ({$csv_fields})";
     }
 
-    $this->connection->queryDirect('ALTER TABLE [{' . $table . '}] ADD ' . implode(' ', $result));
+    $this->connection->queryDirect('ALTER TABLE {' . $table . '} ADD ' . implode(' ', $result));
     $this->resetColumnInformation($table);
     // If we relied on a computed column for the Primary Key,
     // at least index the fields with a regular index.
@@ -1336,7 +1296,7 @@ EOF
   private function createTechnicalPrimaryKeyIndexSql($table) {
     $result = [];
     $result[] = self::TECHNICAL_PK_COLUMN_NAME . " UNIQUEIDENTIFIER DEFAULT NEWID() NOT NULL";
-    $result[] = "CONSTRAINT {{$table}}_pkey_technical PRIMARY KEY CLUSTERED (" . self::TECHNICAL_PK_COLUMN_NAME . ")";
+    $result[] = "CONSTRAINT {{$table}_pkey_technical} PRIMARY KEY CLUSTERED (" . self::TECHNICAL_PK_COLUMN_NAME . ")";
     return implode(' ', $result);
   }
 
@@ -1570,10 +1530,10 @@ EOF
     }
     if (empty($xml_field)) {
       $fields_csv = implode(', ', $fields);
-      return "CREATE INDEX {$name}_idx ON [{{$table}}] ({$fields_csv})";
+      return "CREATE INDEX {$name}_idx ON {{$table}} ({$fields_csv})";
     }
     else {
-      return "CREATE PRIMARY XML INDEX {$name}_idx ON [{{$table}}] ({$xml_field})";
+      return "CREATE PRIMARY XML INDEX {$name}_idx ON {{$table}} ({$xml_field})";
     }
   }
 

@@ -17,13 +17,15 @@ use Drupal\Core\Database\TransactionNameNonUniqueException;
 class Connection extends DatabaseConnection {
 
   /**
-   * The schema object for this connection.
+   * The identifier quote characters for the database type.
    *
-   * Set to NULL when the schema is destroyed.
+   * An array containing the start and end identifier quote characters for the
+   * database type. The ANSI SQL standard identifier quote character is a double
+   * quotation mark.
    *
-   * @var \Drupal\Driver\Database\sqlsrv\Schema|null
+   * @var string[]
    */
-  protected $schema = NULL;
+  protected $identifierQuotes = ['[', ']'];
 
   /**
    * Error code for Login Failed.
@@ -70,85 +72,13 @@ class Connection extends DatabaseConnection {
   /Six';
 
   /**
-   * The list of SQLServer reserved key words.
+   * The schema object for this connection.
    *
-   * @var array
+   * Set to NULL when the schema is destroyed.
+   *
+   * @var \Drupal\sqlsrv\Driver\Database\sqlsrv\Schema|null
    */
-  private $reservedKeyWords = [
-    'action',
-    'admin',
-    'alias',
-    'any',
-    'are',
-    'array',
-    'at',
-    'begin',
-    'boolean',
-    'class',
-    'commit',
-    'contains',
-    'current',
-    'data',
-    'date',
-    'day',
-    'depth',
-    'domain',
-    'external',
-    'file',
-    'full',
-    'function',
-    'get',
-    'go',
-    'host',
-    'input',
-    'language',
-    'last',
-    'less',
-    'local',
-    'map',
-    'min',
-    'module',
-    'new',
-    'no',
-    'object',
-    'old',
-    'open',
-    'operation',
-    'parameter',
-    'parameters',
-    'path',
-    'plan',
-    'prefix',
-    'proc',
-    'public',
-    'ref',
-    'result',
-    'returns',
-    'role',
-    'row',
-    'rule',
-    'save',
-    'search',
-    'second',
-    'section',
-    'session',
-    'size',
-    'state',
-    'statistics',
-    'temporary',
-    'than',
-    'time',
-    'timestamp',
-    'tran',
-    'translate',
-    'translation',
-    'trim',
-    'user',
-    'value',
-    'variable',
-    'view',
-    'without',
-  ];
+  protected $schema = NULL;
 
   /**
    * The temporary table prefix.
@@ -183,7 +113,7 @@ class Connection extends DatabaseConnection {
 
     // Having comments in the query can be tricky and break the
     // SELECT FROM  -> SELECT INTO conversion.
-    /** @var \Drupal\Driver\Database\sqlsrv\Schema $schema */
+    /** @var \Drupal\sqlsrv\Driver\Database\sqlsrv\Schema $schema */
     $schema = $this->schema();
     $query = $schema->removeSQLComments($query);
 
@@ -263,8 +193,7 @@ class Connection extends DatabaseConnection {
 
     // This driver defaults to transaction support, except if explicitly passed
     // FALSE.
-    $this->transactionSupport = !isset($connection_options['transactions']) || $connection_options['transactions'] !== FALSE;
-    $this->transactionalDDLSupport = $this->transactionSupport;
+    $this->transactionalDDLSupport = !isset($connection_options['transactions']) || $connection_options['transactions'] !== FALSE;
 
     // Store connection options for future reference.
     $this->connectionOptions = $connection_options;
@@ -346,16 +275,6 @@ class Connection extends DatabaseConnection {
   /**
    * {@inheritdoc}
    *
-   * Encapsulates field names in brackets when necessary.
-   */
-  public function escapeField($field) {
-    $field = parent::escapeField($field);
-    return $this->quoteIdentifier($field);
-  }
-
-  /**
-   * {@inheritdoc}
-   *
    * Allowing local or global temp tables.
    */
   protected function generateTemporaryTableName() {
@@ -430,20 +349,37 @@ class Connection extends DatabaseConnection {
   /**
    * Prepares a query string and returns the prepared statement.
    *
-   * This method caches prepared statements, reusing them when
-   * possible. It also prefixes tables names enclosed in curly-braces.
+   * This method caches prepared statements, reusing them when possible. It also
+   * prefixes tables names enclosed in curly-braces and, optionally, quotes
+   * identifiers enclosed in square brackets.
    *
-   * @param string $query
+   * @param $query
    *   The query string as SQL, with curly-braces surrounding the
    *   table names.
-   * @param array $options
-   *   An array ooptions to determine which PDO Parameters
-   *   should be used.
+   * @param bool $quote_identifiers
+   *   (optional) Quote any identifiers enclosed in square brackets. Defaults to
+   *   TRUE.
+   *
+   * @return \Drupal\Core\Database\StatementInterface
+   *   A PDO prepared statement ready for its execute() method.
+   *
+   * @deprecated in drupal:9.1.0 and is removed from drupal:10.0.0. Use
+   *   ::prepareStatement instead.
+   *
+   * @see https://www.drupal.org/node/3137786
+   */
+  public function prepareQuery($query, $quote_identifiers = TRUE) {
+    @trigger_error('Connection::prepareQuery() is deprecated in drupal:9.1.0 and is removed from drupal:10.0.0. Use ::prepareStatement() instead. See https://www.drupal.org/node/3137786', E_USER_DEPRECATED);
+    return $this->prepareStatement($query, ['allow_square_brackets' => !$quote_identifiers]);
+  }
+
+  /**
+   * {@inheritdoc}
    *
    * @return \Drupal\Core\Database\Statement
    *   A PDO prepared statement ready for its execute() method.
    */
-  public function prepareQuery($query, array $options = []) {
+  public function prepareStatement(string $query, array $options): StatementInterface {
     $default_options = [
       'emulate_prepares' => FALSE,
       'bypass_preprocess' => FALSE,
@@ -453,8 +389,6 @@ class Connection extends DatabaseConnection {
     // only specific for this preparation and will only override
     // the global configuration if set to different than NULL.
     $options += $default_options;
-
-    $query = $this->prefixTables($query);
 
     // Preprocess the query.
     if (!$options['bypass_preprocess']) {
@@ -467,8 +401,8 @@ class Connection extends DatabaseConnection {
       // Never use this when you need special column binding.
       // Unlike other PDO drivers, sqlsrv requires this attribute be set
       // on the statement, not the connection.
-      $driver_options[\PDO::ATTR_EMULATE_PREPARES] = TRUE;
-      $driver_options[\PDO::SQLSRV_ATTR_ENCODING] = \PDO::SQLSRV_ENCODING_UTF8;
+      $driver_options['pdo'][\PDO::ATTR_EMULATE_PREPARES] = TRUE;
+      $driver_options['pdo'][\PDO::SQLSRV_ATTR_ENCODING] = \PDO::SQLSRV_ENCODING_UTF8;
     }
 
     // We run the statements in "direct mode" because the way PDO prepares
@@ -482,19 +416,22 @@ class Connection extends DatabaseConnection {
     // you should execute your queries with PDO::SQLSRV_ATTR_DIRECT_QUERY set to
     // True. For example, if you use temporary tables in your queries,
     // PDO::SQLSRV_ATTR_DrIRECT_QUERY must be set to True.
-    $driver_options[\PDO::SQLSRV_ATTR_DIRECT_QUERY] = TRUE;
+    $driver_options['pdo'][\PDO::SQLSRV_ATTR_DIRECT_QUERY] = TRUE;
 
     // It creates a cursor for the query, which allows you to iterate over the
     // result set without fetching the whole result at once. A scrollable
     // cursor, specifically, is one that allows iterating backwards.
     // https://msdn.microsoft.com/en-us/library/hh487158%28v=sql.105%29.aspx
-    $driver_options[\PDO::ATTR_CURSOR] = \PDO::CURSOR_SCROLL;
+    $driver_options['pdo'][\PDO::ATTR_CURSOR] = \PDO::CURSOR_SCROLL;
 
     // Lets you access rows in any order. Creates a client-side cursor query.
-    $driver_options[\PDO::SQLSRV_ATTR_CURSOR_SCROLL_TYPE] = \PDO::SQLSRV_CURSOR_BUFFERED;
-
+    $driver_options['pdo'][\PDO::SQLSRV_ATTR_CURSOR_SCROLL_TYPE] = \PDO::SQLSRV_CURSOR_BUFFERED;
+    $query = $this->prefixTables($query);
+    if (!($options['allow_square_brackets'] ?? FALSE)) {
+      $query = $this->quoteIdentifiers($query);
+    }
     /** @var \Drupal\Core\Database\Statement $stmt */
-    $stmt = $this->connection->prepare($query, $driver_options);
+    $stmt = $this->connection->prepare($query, $options['pdo'] ?? []);
     return $stmt;
   }
 
@@ -626,7 +563,7 @@ class Connection extends DatabaseConnection {
         if ($emulate === TRUE || $argcount >= 2100 || ($argcount != substr_count($query, ':'))) {
           $emulate = TRUE;
         }
-        $stmt = $this->prepareQuery($query, ['emulate_prepares' => $emulate]);
+        $stmt = $this->prepareStatement($query, ['emulate_prepares' => $emulate]);
         $stmt->execute($args, $options);
       }
 
@@ -726,7 +663,7 @@ class Connection extends DatabaseConnection {
     // piece.
     $default_parts = explode('.', $this->prefixes['default']);
     $table_part = array_pop($default_parts);
-    $default_parts[] = $this->tempTablePrefix . $table_part;
+    $default_parts[] = '[' . $this->tempTablePrefix . $table_part;
     $full_prefix = implode('.', $default_parts);
     array_unshift($this->prefixReplace, $full_prefix . 'db_temporary_');
   }
@@ -806,7 +743,7 @@ class Connection extends DatabaseConnection {
         'bypass_preprocess' => TRUE,
         'emulate_prepares' => FALSE,
       ];
-      $stmt = $this->prepareQuery($query, $direct_query_options + $options);
+      $stmt = $this->prepareStatement($query, $direct_query_options + $options);
       $stmt->execute($args, $options);
 
       // Depending on the type of query we may need to return a different value.
@@ -848,16 +785,11 @@ class Connection extends DatabaseConnection {
    *   Query string in MS SQL format.
    */
   public function preprocessQuery($query) {
-    // Force quotes around some SQL Server reserved keywords.
-    if (preg_match('/^SELECT/i', $query)) {
-      $query = preg_replace_callback(self::RESERVED_REGEXP, [$this, 'replaceReservedCallback'], $query);
-    }
-
     // Last chance to modify some SQL Server-specific syntax.
     $replacements = [];
 
     // Add prefixes to Drupal-specific functions.
-    /** @var \Drupal\Driver\Database\sqlsrv\Schema $schema */
+    /** @var \Drupal\sqlsrv\Driver\Database\sqlsrv\Schema $schema */
     $schema = $this->schema();
     $defaultSchema = $schema->GetDefaultSchema();
     foreach ($schema->DrupalSpecificFunctions() as $function) {
@@ -881,49 +813,6 @@ class Connection extends DatabaseConnection {
     $query = preg_replace(array_keys($replacements), array_values($replacements), $query);
 
     return $query;
-  }
-
-  /**
-   * Quotes an identifier if it matches a SQL Server reserved keyword.
-   *
-   * @param string $identifier
-   *   The field to check.
-   *
-   * @return string
-   *   The identifier, quoted if it matches a SQL Server reserved keyword.
-   */
-  protected function quoteIdentifier($identifier) {
-    if (strpos($identifier, '.') !== FALSE) {
-      list($table, $identifier) = explode('.', $identifier, 2);
-    }
-    if (in_array(strtolower($identifier), $this->reservedKeyWords, TRUE)) {
-      // Quote the string for SQLServer reserved keywords.
-      $identifier = '[' . $identifier . ']';
-    }
-    return isset($table) ? $table . '.' . $identifier : $identifier;
-  }
-
-  /**
-   * Replace reserved words.
-   *
-   * This method gets called between 3,000 and 10,000 times
-   * on cold caches. Make sure it is simple and fast.
-   *
-   * @param mixed $matches
-   *   What is this?
-   *
-   * @return string
-   *   The match surrounded with brackets.
-   */
-  protected function replaceReservedCallback($matches) {
-    if ($matches[1] !== '') {
-      // Replace reserved words. We are not calling
-      // quoteIdentifier() on purpose.
-      return '[' . $matches[1] . ']';
-    }
-    // Let other value passthru.
-    // by the logic of the regex above, this will always be the last match.
-    return end($matches);
   }
 
   /**
