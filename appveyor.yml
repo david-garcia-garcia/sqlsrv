@@ -38,17 +38,16 @@ install:
   - ps: (New-Object Net.WebClient).DownloadFile('http://curl.haxx.se/ca/cacert.pem', 'C:\tools\php74\cacert.pem')
   - ps: new-item c:\composer -itemtype directory
   - ps: $Env:Path = "C:\tools\php74;" + $Env:Path;
-  - ps: Get-ExecutionPolicy –List
-  - ps: |
-      Set-ExecutionPolicy Unrestricted -force
-      Import-Module PsIni
-      $ini = Get-IniContent C:\tools\php74\php.ini;
-      $ini["extension_dir"] = "ext"; 
-      $ini["extension"] = @("php_openssl.dll", "php_mbstring.dll", "php_curl.dll", "php_gd2.dll"); 
-      $ini["curl.cainfo"] = "C:\tools\php74\cacert.pem";
-      $ini["openssl.cafile"] = "C:\tools\php74\cacert.pem";
-      $ini["memory_limit"] = "2048MB";
-      $ini | Out-IniFile -FilePath C:\tools\php74\php.ini -Force;
+  - ps: $Env:Path = "C:\tools\php74;" + $Env:Path;
+  - ps: Add-Content C:\tools\php74\php.ini "extension_dir=ext `n"
+  - ps: Add-Content C:\tools\php74\php.ini "extension=php_openssl.dll `n"
+  - ps: Add-Content C:\tools\php74\php.ini "extension=php_mbstring.dll `n"
+  - ps: Add-Content C:\tools\php74\php.ini "extension=php_curl.dll `n"
+  - ps: Add-Content C:\tools\php74\php.ini "extension=php_gd2.dll `n"
+  - ps: Add-Content C:\tools\php74\php.ini "curl.cainfo=C:\tools\php74\cacert.pem `n"
+  - ps: Add-Content C:\tools\php74\php.ini "openssl.cafile=C:\tools\php74\cacert.pem `n"
+  - ps: Add-Content C:\tools\php74\php.ini "memory_limit=2048M `n"
+  - ps: php -i | Out-File "$Env:TestLogDir\php-i.txt"
   - cmd: cd /d C:\composer
   # RDPFINISH
   - ps: |
