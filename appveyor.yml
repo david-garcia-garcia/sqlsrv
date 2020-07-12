@@ -22,6 +22,7 @@ install:
   - ps: choco install php -y --no-progress 2>&1 > C:\TestLogs\choco_install_php.txt
   - ps: choco install urlrewrite -y --no-progress 2>&1 > C:\TestLogs\choco_install_urlrewrite.txt
   - ps: choco install OpenSSL.Light -y --no-progress 2>&1 > C:\TestLogs\choco_install_openssl.txt
+  - ps: choco install sqlserver-odbcdriver -y --no-progress 2>&1 > C:\TestLogs\choco_install_sqlserver-odbcdriver.txt
   - ps: | 
       $WorkingDir = Convert-Path .
       $ZipPath = Join-Path $WorkingDir '\chef_cmdlet.zip'
@@ -33,16 +34,16 @@ install:
   - ps: $Env:Path = "C:\Program Files\OpenSSL;" + $Env:Path;
   - cmd: sc config wuauserv start= auto
   - cmd: net start wuauserv
-  - ps: (New-Object Net.WebClient).DownloadFile('http://curl.haxx.se/ca/cacert.pem', 'C:\tools\php73\cacert.pem')
+  - ps: (New-Object Net.WebClient).DownloadFile('http://curl.haxx.se/ca/cacert.pem', 'C:\tools\php74\cacert.pem')
   - ps: new-item c:\composer -itemtype directory
-  - ps: $Env:Path = "C:\tools\php73;" + $Env:Path;
-  - ps: Add-Content C:\tools\php73\php.ini "extension_dir=ext `n"
-  - ps: Add-Content C:\tools\php73\php.ini "extension=php_openssl `n"
-  - ps: Add-Content C:\tools\php73\php.ini "extension=php_mbstring `n"
-  - ps: Add-Content C:\tools\php73\php.ini "extension=php_curl `n"
-  - ps: Add-Content C:\tools\php73\php.ini "extension=php_gd2.dll `n"
-  - ps: Add-Content C:\tools\php73\php.ini "curl.cainfo=C:\tools\php73\cacert.pem `n"
-  - ps: Add-Content C:\tools\php73\php.ini "openssl.cafile=C:\tools\php73\cacert.pem `n"
+  - ps: $Env:Path = "C:\tools\php74;" + $Env:Path;
+  - ps: Add-Content C:\tools\php74\php.ini "extension_dir=ext `n"
+  - ps: Add-Content C:\tools\php74\php.ini "extension=php_openssl `n"
+  - ps: Add-Content C:\tools\php74\php.ini "extension=php_mbstring `n"
+  - ps: Add-Content C:\tools\php74\php.ini "extension=php_curl `n"
+  - ps: Add-Content C:\tools\php74\php.ini "extension=php_gd2.dll `n"
+  - ps: Add-Content C:\tools\php74\php.ini "curl.cainfo=C:\tools\php74\cacert.pem `n"
+  - ps: Add-Content C:\tools\php74\php.ini "openssl.cafile=C:\tools\php74\cacert.pem `n"
   - cmd: cd /d C:\composer
   - cmd: choco install composer -y --no-progress
   - ps: refreshenv
