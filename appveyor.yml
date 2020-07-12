@@ -39,7 +39,7 @@ install:
   - ps: new-item c:\composer -itemtype directory
   - ps: $Env:Path = "C:\tools\php74;" + $Env:Path;
   - ps: |
-      Set-ExecutionPolicy Bypass
+      Set-ExecutionPolicy Unrestricted -force
       Import-Module PsIni
       $ini = Get-IniContent C:\tools\php74\php.ini;
       $ini["extension_dir"] = "ext"; 
