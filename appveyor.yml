@@ -38,6 +38,7 @@ install:
   - ps: (New-Object Net.WebClient).DownloadFile('http://curl.haxx.se/ca/cacert.pem', 'C:\tools\php74\cacert.pem')
   - ps: new-item c:\composer -itemtype directory
   - ps: $Env:Path = "C:\tools\php74;" + $Env:Path;
+  - ps: Get-ExecutionPolicy –List
   - ps: |
       Set-ExecutionPolicy Unrestricted -force
       Import-Module PsIni
@@ -47,7 +48,7 @@ install:
       $ini["curl.cainfo"] = "C:\tools\php74\cacert.pem";
       $ini["openssl.cafile"] = "C:\tools\php74\cacert.pem";
       $ini["memory_limit"] = "2048MB";
-      $ini | Out-IniFile -FilePath C:\tools\php74\php.ini;
+      $ini | Out-IniFile -FilePath C:\tools\php74\php.ini -Force;
   - cmd: cd /d C:\composer
   - cmd: choco install composer -y --no-progress
   - ps: Add-Content C:\ProgramData\ComposerSetup\bin\composer.bat ""
