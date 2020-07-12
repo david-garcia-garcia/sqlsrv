@@ -10,9 +10,9 @@ namespace Drupal\Driver\Database\sqlsrv;
 use Drupal\Core\Database\Database;
 use Drupal\Core\Database\Query\Insert as QueryInsert;
 
-use mssql\Utils as DatabaseUtils;
-use mssql\Settings\TransactionIsolationLevel as DatabaseTransactionIsolationLevel;
-use mssql\Settings\TransactionScopeOption as DatabaseTransactionScopeOption;
+use Drupal\Driver\Database\sqlsrv\Utils as DatabaseUtils;
+use Drupal\Driver\Database\sqlsrv\Settings\TransactionIsolationLevel as DatabaseTransactionIsolationLevel;
+use Drupal\Driver\Database\sqlsrv\Settings\TransactionScopeOption as DatabaseTransactionScopeOption;
 
 use Drupal\Driver\Database\sqlsrv\TransactionSettings as DatabaseTransactionSettings;
 

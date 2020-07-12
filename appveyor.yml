@@ -8,20 +8,22 @@ hosts:
   www.mydrupalsite.com: 127.0.0.1
 image:
   - Visual Studio 2019
-environment:
-  GITLABUSERNAME:
-    secure: N0zbef6BtZd0jLNUUub7Dg==
-  GITLABPASSWORD:
-    secure: DwrgA4XLxZEcUXSZnnsAJg==
 install:
   - ps: $Env:APPVEYOR_REPO_COMMIT_MESSAGE_FULL = "$env:APPVEYOR_REPO_COMMIT_MESSAGE $env:APPVEYOR_REPO_COMMIT_MESSAGE_EXTENDED".TrimEnd();
-  - cmd: mkdir c:\testlogs
+  - ps: $Env:TestLogDir = "$Env:BuildDir\TestLogs";
+  - ps: $Env:TestLogDirClone = "$Env:BuildDir\TestLogsClone";
+  - cmd: mkdir %TestLogDir%
+  - cmd: mkdir %TestLogDirClone%
+  - ps: Start-Transcript -path "$Env:BuildDir\console.txt" -append
+  - ps: $Env:APPVEYOR_REPO_COMMIT_MESSAGE_FULL = "$env:APPVEYOR_REPO_COMMIT_MESSAGE $env:APPVEYOR_REPO_COMMIT_MESSAGE_EXTENDED".TrimEnd();
   - ps: Start-Service 'MSSQL$SQL2017' | out-null
   - ps: Set-Service 'SQLAgent$SQL2017' -StartupType Manual | out-null
   - ps: Start-Service W3SVC | out-null
-  - ps: choco install php -y --no-progress 2>&1 > C:\TestLogs\choco_install_php.txt
-  - ps: choco install urlrewrite -y --no-progress 2>&1 > C:\TestLogs\choco_install_urlrewrite.txt
-  - ps: choco install OpenSSL.Light -y --no-progress 2>&1 > C:\TestLogs\choco_install_openssl.txt
+  - ps: choco install php -y --no-progress 2>&1 > "$Env:TestLogDir\choco_install_php.txt"
+  - ps: choco install urlrewrite -y --no-progress 2>&1 > "$Env:TestLogDir\choco_install_urlrewrite.txt"
+  - ps: choco install OpenSSL.Light -y --no-progress 2>&1 > "$Env:TestLogDir\choco_install_openssl.txt"
+  - ps: choco install sqlserver-odbcdriver -y --no-progress 2>&1 > "$Env:TestLogDir\choco_install_sqlserver-odbcdriver.txt"
+  - ps: Install-Module PsIni
   - ps: | 
       $WorkingDir = Convert-Path .
       $ZipPath = Join-Path $WorkingDir '\chef_cmdlet.zip'
@@ -33,18 +35,27 @@ install:
   - ps: $Env:Path = "C:\Program Files\OpenSSL;" + $Env:Path;
   - cmd: sc config wuauserv start= auto
   - cmd: net start wuauserv
-  - ps: (New-Object Net.WebClient).DownloadFile('http://curl.haxx.se/ca/cacert.pem', 'C:\tools\php73\cacert.pem')
+  - ps: (New-Object Net.WebClient).DownloadFile('http://curl.haxx.se/ca/cacert.pem', 'C:\tools\php74\cacert.pem')
   - ps: new-item c:\composer -itemtype directory
-  - ps: $Env:Path = "C:\tools\php73;" + $Env:Path;
-  - ps: Add-Content C:\tools\php73\php.ini "extension_dir=ext `n"
-  - ps: Add-Content C:\tools\php73\php.ini "extension=php_openssl `n"
-  - ps: Add-Content C:\tools\php73\php.ini "extension=php_mbstring `n"
-  - ps: Add-Content C:\tools\php73\php.ini "extension=php_curl `n"
-  - ps: Add-Content C:\tools\php73\php.ini "extension=php_gd2.dll `n"
-  - ps: Add-Content C:\tools\php73\php.ini "curl.cainfo=C:\tools\php73\cacert.pem `n"
-  - ps: Add-Content C:\tools\php73\php.ini "openssl.cafile=C:\tools\php73\cacert.pem `n"
+  - ps: $Env:Path = "C:\tools\php74;" + $Env:Path;
+  - ps: $Env:Path = "C:\tools\php74;" + $Env:Path;
+  - ps: Add-Content C:\tools\php74\php.ini "extension_dir=ext `n"
+  - ps: Add-Content C:\tools\php74\php.ini "extension=php_openssl.dll `n"
+  - ps: Add-Content C:\tools\php74\php.ini "extension=php_mbstring.dll `n"
+  - ps: Add-Content C:\tools\php74\php.ini "extension=php_curl.dll `n"
+  - ps: Add-Content C:\tools\php74\php.ini "extension=php_gd2.dll `n"
+  - ps: Add-Content C:\tools\php74\php.ini "curl.cainfo=C:\tools\php74\cacert.pem `n"
+  - ps: Add-Content C:\tools\php74\php.ini "openssl.cafile=C:\tools\php74\cacert.pem `n"
+  - ps: Add-Content C:\tools\php74\php.ini "memory_limit=2048M `n"
+  - ps: php -i | Out-File "$Env:TestLogDir\php-i.txt"
   - cmd: cd /d C:\composer
+  # RDPFINISH
+  - ps: |
+      If ($Env:APPVEYOR_REPO_COMMIT_MESSAGE_FULL -imatch 'rdpcomposer') {
+        $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
+      }
   - cmd: choco install composer -y --no-progress
+  - ps: Add-Content C:\ProgramData\ComposerSetup\bin\composer.bat ""
   - ps: refreshenv
   - cmd: SET PATH=C:\ProgramData\ComposerSetup\bin;%PATH%
   - ps: |
@@ -59,10 +70,10 @@ install:
   - cmd: composer require drupal/sqlsrv:dev-2.x@dev
   # Replace the pulled module with the local files, only for this CI
   - cmd: xcopy /S /I /E /Y %APPVEYOR_BUILD_FOLDER% %cd%\web\modules\contrib\sqlsrv
+  # Move the PHP_BIN needed to build the PHP environment
+  - cmd: xcopy /S /I /E /Y %APPVEYOR_BUILD_FOLDER%\phpbin %cd%\phpbin
   # Copy driver
   - cmd: xcopy /S /I /E /Y %cd%\web\modules\contrib\sqlsrv\drivers %cd%\web\drivers
-  - cmd: composer config repositories.1 git https://%GITLABUSERNAME%:%GITLABPASSWORD%@gitlab.com/david-garcia-garcia/mssql.git
-  - cmd: composer require david/mssql
   - ps: |
       $cwd = (Get-Location).Path;
       "php $cwd\vendor\drupal\console\bin\drupal " + $([char]37) + "*" | Out-File $cwd/web/drupal.bat -Encoding ASCII
@@ -100,3 +111,17 @@ test_script:
   - cmd: echo Tests not run because they need to be updated as they are using deprecated implementations
   # - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml c:\testresults\ "Common" --class Drupal\sqlsrv\Tests\SchemaTest
   # - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml c:\testresults\ "Common" --class Drupal\sqlsrv\Tests\SelectQueryTest
+on_finish:
+  - ps: echo "on_finish start";
+  - ps: Stop-Transcript
+  - cmd: echo Build Version %APPVEYOR_BUILD_VERSION%
+  # Add the chocolatey logs
+  - cmd: mkdir %TestLogDir%\ChocolateyLogs
+  - cmd: xcopy C:\ProgramData\chocolatey\logs %TestLogDir%\ChocolateyLogs /e /q & exit 0
+  # Add the npm-cache logs
+  - cmd: mkdir %TestLogDir%\npm-cache-logs
+  - cmd: xcopy %APPDATA%\npm-cache\_logs %TestLogDir%\npm-cache-logs /s /q & exit 0
+  # Zip and push test logs
+  - cmd: xcopy %TestLogDir% %TestLogDirClone% /q /s /e & exit 0
+  - cmd: 7z a -p"%APPVEYOR_BUILD_VERSION%" -r %BuildDir%\TestLogs.zip %TestLogDirClone%\* > null
+  - ps: Push-AppveyorArtifact "$Env:BuildDir\TestLogs.zip" -FileName "TestLogs.zip"

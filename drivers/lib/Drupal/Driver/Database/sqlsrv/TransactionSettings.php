@@ -2,8 +2,8 @@
 
 namespace Drupal\Driver\Database\sqlsrv;
 
-use mssql\Settings\TransactionIsolationLevel as DatabaseTransactionIsolationLevel;
-use mssql\Settings\TransactionScopeOption as DatabaseTransactionScopeOption;
+use Drupal\Driver\Database\sqlsrv\Settings\TransactionIsolationLevel as DatabaseTransactionIsolationLevel;
+use Drupal\Driver\Database\sqlsrv\Settings\TransactionScopeOption as DatabaseTransactionScopeOption;
 
 use Drupal\Core\Database\Database;
 
