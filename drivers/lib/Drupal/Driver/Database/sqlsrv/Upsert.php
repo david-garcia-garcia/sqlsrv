@@ -6,8 +6,8 @@
 namespace Drupal\Driver\Database\sqlsrv;
 use Drupal\Core\Database\Query\Upsert as QueryUpsert;
 use Drupal\Core\Database\SchemaObjectDoesNotExistException;
-use mssql\Settings\TransactionIsolationLevel as DatabaseTransactionIsolationLevel;
-use mssql\Settings\TransactionScopeOption as DatabaseTransactionScopeOption;
+use Drupal\Driver\Database\sqlsrv\Settings\TransactionIsolationLevel as DatabaseTransactionIsolationLevel;
+use Drupal\Driver\Database\sqlsrv\Settings\TransactionScopeOption as DatabaseTransactionScopeOption;
 use Drupal\Driver\Database\sqlsrv\TransactionSettings as DatabaseTransactionSettings;
 use Drupal\Driver\Database\sqlsrv\Utils as DatabaseUtils;
 /**
