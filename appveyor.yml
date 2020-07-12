@@ -10,7 +10,9 @@ image:
   - Visual Studio 2019
 install:
   - ps: $Env:TestLogDir = "$Env:BuildDir\TestLogs";
+  - ps: $Env:TestLogDirClone = "$Env:BuildDir\TestLogsClone";
   - cmd: mkdir %TestLogDir%
+  - cmd: mkdir %TestLogDirClone%
   - ps: Start-Transcript -path "$Env:BuildDir\console.txt" -append
   - ps: $Env:APPVEYOR_REPO_COMMIT_MESSAGE_FULL = "$env:APPVEYOR_REPO_COMMIT_MESSAGE $env:APPVEYOR_REPO_COMMIT_MESSAGE_EXTENDED".TrimEnd();
   - ps: Start-Service 'MSSQL$SQL2017' | out-null
@@ -114,5 +116,7 @@ on_finish:
   # Add the npm-cache logs
   - cmd: mkdir %TestLogDir%\npm-cache-logs
   - cmd: xcopy %APPDATA%\npm-cache\_logs %TestLogDir%\npm-cache-logs /s /q & exit 0
-  # Push the test logs
+  # Zip and push test logs
+  - cmd: xcopy %TestLogDir% %TestLogDirClone% /q /s /e & exit 0
+  - cmd: 7z a -p"%APPVEYOR_BUILD_VERSION%" -r %BuildDir%\TestLogs.zip %TestLogDirClone%\* > null
   - ps: Push-AppveyorArtifact "$Env:BuildDir\TestLogs.zip" -FileName "TestLogs.zip"
