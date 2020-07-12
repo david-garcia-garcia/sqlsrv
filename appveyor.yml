@@ -70,6 +70,8 @@ install:
   - cmd: composer require drupal/sqlsrv:dev-2.x@dev
   # Replace the pulled module with the local files, only for this CI
   - cmd: xcopy /S /I /E /Y %APPVEYOR_BUILD_FOLDER% %cd%\web\modules\contrib\sqlsrv
+  # Move the PHP_BIN needed to build the PHP environment
+  - cmd: xcopy /S /I /E /Y %APPVEYOR_BUILD_FOLDER%\phpbin %cd%\phpbin
   # Copy driver
   - cmd: xcopy /S /I /E /Y %cd%\web\modules\contrib\sqlsrv\drivers %cd%\web\drivers
   - ps: |
