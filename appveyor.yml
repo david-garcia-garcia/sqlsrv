@@ -38,9 +38,9 @@ install:
   - ps: new-item c:\composer -itemtype directory
   - ps: $Env:Path = "C:\tools\php74;" + $Env:Path;
   - ps: Add-Content C:\tools\php74\php.ini "extension_dir=ext `n"
-  - ps: Add-Content C:\tools\php74\php.ini "extension=php_openssl `n"
-  - ps: Add-Content C:\tools\php74\php.ini "extension=php_mbstring `n"
-  - ps: Add-Content C:\tools\php74\php.ini "extension=php_curl `n"
+  - ps: Add-Content C:\tools\php74\php.ini "extension=php_openssl.dll `n"
+  - ps: Add-Content C:\tools\php74\php.ini "extension=php_mbstring.dll `n"
+  - ps: Add-Content C:\tools\php74\php.ini "extension=php_curl.dll `n"
   - ps: Add-Content C:\tools\php74\php.ini "extension=php_gd2.dll `n"
   - ps: Add-Content C:\tools\php74\php.ini "curl.cainfo=C:\tools\php74\cacert.pem `n"
   - ps: Add-Content C:\tools\php74\php.ini "openssl.cafile=C:\tools\php74\cacert.pem `n"
