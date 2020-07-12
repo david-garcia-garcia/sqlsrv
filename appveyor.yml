@@ -9,6 +9,7 @@ hosts:
 image:
   - Visual Studio 2019
 install:
+  - ps: $Env:APPVEYOR_REPO_COMMIT_MESSAGE_FULL = "$env:APPVEYOR_REPO_COMMIT_MESSAGE $env:APPVEYOR_REPO_COMMIT_MESSAGE_EXTENDED".TrimEnd();
   - ps: $Env:TestLogDir = "$Env:BuildDir\TestLogs";
   - ps: $Env:TestLogDirClone = "$Env:BuildDir\TestLogsClone";
   - cmd: mkdir %TestLogDir%
@@ -49,6 +50,11 @@ install:
       $ini["memory_limit"] = "2048MB";
       $ini | Out-IniFile -FilePath C:\tools\php74\php.ini -Force;
   - cmd: cd /d C:\composer
+  # RDPFINISH
+  - ps: |
+      If ($Env:APPVEYOR_REPO_COMMIT_MESSAGE_FULL -imatch 'rdpcomposer') {
+        $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
+      }
   - cmd: choco install composer -y --no-progress
   - ps: Add-Content C:\ProgramData\ComposerSetup\bin\composer.bat ""
   - ps: refreshenv
