@@ -2,7 +2,8 @@
 
 namespace Drupal\Driver\Database\sqlsrv\Component;
 
-interface SerializerInterface {
+interface SerializerInterface
+{
 
   /**
    * Serialize data.
@@ -11,14 +12,14 @@ interface SerializerInterface {
    *
    * @return string
    */
-  function serialize($data);
+    public function serialize($data);
 
-  /**
-   * Unserialize data.
-   *
-   * @param string $data
-   *
-   * @return mixed
-   */
-  function unserialize($data);
+    /**
+     * Unserialize data.
+     *
+     * @param string $data
+     *
+     * @return mixed
+     */
+    public function unserialize($data);
 }

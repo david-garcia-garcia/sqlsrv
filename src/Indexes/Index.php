@@ -5,59 +5,62 @@ namespace Drupal\sqlsrv\Indexes;
 /**
  * Represents a database Index.
  */
-class Index {
+class Index
+{
+    private $table;
 
-  private $table;
+    private $name;
 
-  private $name;
+    private $code;
 
-  private $code;
+    /**
+     * Create an instance of Index.
+     *
+     * @param mixed $uri
+     * @throws \Exception
+     */
+    public function __construct($uri)
+    {
+        $name = pathinfo($uri, PATHINFO_FILENAME);
+        $parts = explode('@', basename($name));
 
-  /**
-   * Create an instance of Index.
-   * 
-   * @param mixed $uri 
-   * @throws \Exception 
-   */
-  public function __construct($uri) {
+        if (count($parts) != 2) {
+            throw new \Exception('Incorrect SQL index file name format.');
+        }
 
-    $name = pathinfo($uri, PATHINFO_FILENAME);
-    $parts = explode('@', basename($name));
+        $this->table = $parts[0];
+        $this->name = $parts[1];
 
-    if (count($parts) != 2) {
-      throw new \Exception('Incorrect SQL index file name format.');
+        $this->code = file_get_contents($uri);
     }
 
-    $this->table = $parts[0];
-    $this->name = $parts[1];
+    /**
+     * Table name.
+     *
+     * @return string
+     */
+    public function GetTable()
+    {
+        return $this->table;
+    }
 
-    $this->code = file_get_contents($uri);
-  }
+    /**
+     * Index name.
+     *
+     * @return string
+     */
+    public function GetName()
+    {
+        return $this->name;
+    }
 
-  /**
-   * Table name.
-   * 
-   * @return string
-   */
-  public function GetTable() {
-    return $this->table;
-  }
-
-  /**
-   * Index name.
-   * 
-   * @return string
-   */
-  public function GetName() {
-    return $this->name;
-  }
-
-  /**
-   * Get the SQL statement to create this index.
-   * 
-   * @return string
-   */
-  public function GetCode() {
-    return \mssql\Utils::removeUtf8Bom($this->code);
-  }
+    /**
+     * Get the SQL statement to create this index.
+     *
+     * @return string
+     */
+    public function GetCode()
+    {
+        return \mssql\Utils::removeUtf8Bom($this->code);
+    }
 }

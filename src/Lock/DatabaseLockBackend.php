@@ -18,27 +18,29 @@ use Drupal\Core\Database\IntegrityConstraintViolationException;
  *
  * @ingroup lock
  */
-class DatabaseLockBackend extends CoreDatabaseLockBackend {
-  /**
-   * {@inheritdoc}
-   */
-  public function lockMayBeAvailable($name) {
-    $lock = $this->database->query('SELECT CONVERT(varchar(50), expire, 128) as expire, value FROM {semaphore} WHERE name = :name', array(':name' => $name))->fetchAssoc();
-    if (!$lock) {
-      return TRUE;
-    }
-    $expire = (float) $lock['expire'];
-    $now = microtime(TRUE);
-    if ($now > $expire) {
-      // We check two conditions to prevent a race condition where another
-      // request acquired the lock and set a new expire time. We add a small
-      // number to $expire to avoid errors with float to string conversion.
-      return (bool) $this->database->delete('semaphore')
+class DatabaseLockBackend extends CoreDatabaseLockBackend
+{
+    /**
+     * {@inheritdoc}
+     */
+    public function lockMayBeAvailable($name)
+    {
+        $lock = $this->database->query('SELECT CONVERT(varchar(50), expire, 128) as expire, value FROM {semaphore} WHERE name = :name', array(':name' => $name))->fetchAssoc();
+        if (!$lock) {
+            return true;
+        }
+        $expire = (float) $lock['expire'];
+        $now = microtime(true);
+        if ($now > $expire) {
+            // We check two conditions to prevent a race condition where another
+            // request acquired the lock and set a new expire time. We add a small
+            // number to $expire to avoid errors with float to string conversion.
+            return (bool) $this->database->delete('semaphore')
         ->condition('name', $name)
         ->condition('value', $lock['value'])
         ->condition('expire', 0.0001 + $expire, '<=')
         ->execute();
+        }
+        return false;
     }
-    return FALSE;
-  }
 }

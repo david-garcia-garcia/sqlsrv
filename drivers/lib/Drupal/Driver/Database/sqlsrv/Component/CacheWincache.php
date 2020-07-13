@@ -8,86 +8,85 @@ namespace Drupal\Driver\Database\sqlsrv\Component;
  */
 class CacheWincache implements CacheInterface
 {
+    private $prefix = null;
 
-  private $prefix = NULL;
+    /**
+     * This cache stores everything in-memory during the
+     * lifetime of this request.
+     *
+     * @var array
+     */
+    private $data = [];
 
-  /**
-   * This cache stores everything in-memory during the
-   * lifetime of this request.
-   *
-   * @var array
-   */
-  private $data = [];
+    /**
+     * Serializer to use.
+     *
+     * @var SerializerInterface
+     */
+    private $serializer = null;
 
-  /**
-   * Serializer to use.
-   *
-   * @var SerializerInterface
-   */
-  private $serializer = NULL;
+    public function __construct($prefix)
+    {
+        $this->prefix = $prefix;
 
-  public function __construct($prefix)
-  {
-    $this->prefix = $prefix;
-
-    // Try to use a serializer...
-    if (function_exists('igbinary_serialize')) {
-      $this->serializer = new SerializerIgbinary();
-    } else {
-      $this->serializer = new SerializerPhp();
-    }
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  function Set($cid, $data)
-  {
-    $cache = new \stdClass();
-    $cache->data = $data;
-    $cache->serialized = FALSE;
-    $cache->timestamp = time();
-    $this->data[$cid] = clone $cache;
-    wincache_ucache_set($this->prefix . ':' . $cid, $cache);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  function Get($cid)
-  {
-    if (isset($this->data[$cid])) {
-      return $this->data[$cid];
-    }
-    $success = FALSE;
-    $result = wincache_ucache_get($this->prefix . ':' . $cid, $success);
-    if (!$success) {
-      return FALSE;
-    }
-    if (isset($result->serialized) && $result->serialized) {
-      $result->data = $this->serializer->unserialize($result->data);
-    }
-    $this->data[$cid] = $result;
-    return $result;
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  function Clear($cid)
-  {
-    if (empty($cid)) {
-      $info = wincache_ucache_info();
-      foreach ($info['ucache_entries'] as $entry) {
-        $key = $entry['key_name'];
-        if (strpos($key, $this->prefix . ':') === 0) {
-          wincache_ucache_delete($key);
-          unset($this->data[$key]);
+        // Try to use a serializer...
+        if (function_exists('igbinary_serialize')) {
+            $this->serializer = new SerializerIgbinary();
+        } else {
+            $this->serializer = new SerializerPhp();
         }
-      }
-    } else {
-      wincache_ucache_delete($this->prefix . ':' . $cid);
-      unset($this->data[$cid]);
     }
-  }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function Set($cid, $data)
+    {
+        $cache = new \stdClass();
+        $cache->data = $data;
+        $cache->serialized = false;
+        $cache->timestamp = time();
+        $this->data[$cid] = clone $cache;
+        wincache_ucache_set($this->prefix . ':' . $cid, $cache);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function Get($cid)
+    {
+        if (isset($this->data[$cid])) {
+            return $this->data[$cid];
+        }
+        $success = false;
+        $result = wincache_ucache_get($this->prefix . ':' . $cid, $success);
+        if (!$success) {
+            return false;
+        }
+        if (isset($result->serialized) && $result->serialized) {
+            $result->data = $this->serializer->unserialize($result->data);
+        }
+        $this->data[$cid] = $result;
+        return $result;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function Clear($cid)
+    {
+        if (empty($cid)) {
+            $info = wincache_ucache_info();
+            foreach ($info['ucache_entries'] as $entry) {
+                $key = $entry['key_name'];
+                if (strpos($key, $this->prefix . ':') === 0) {
+                    wincache_ucache_delete($key);
+                    unset($this->data[$key]);
+                }
+            }
+        } else {
+            wincache_ucache_delete($this->prefix . ':' . $cid);
+            unset($this->data[$cid]);
+        }
+    }
 }

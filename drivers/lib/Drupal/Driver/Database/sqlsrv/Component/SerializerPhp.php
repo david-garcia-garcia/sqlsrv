@@ -2,19 +2,22 @@
 
 namespace Drupal\Driver\Database\sqlsrv\Component;
 
-class SerializerPhp implements SerializerInterface {
+class SerializerPhp implements SerializerInterface
+{
 
   /**
    * {@inheritdoc}
   */
-  public function serialize($value) {
-    return serialize($value);
-  }
+    public function serialize($value)
+    {
+        return serialize($value);
+    }
 
-  /**
-   * {@inheritdoc}
-   */
-  public function unserialize($value) {
-    return unserialize($value);
-  }
+    /**
+     * {@inheritdoc}
+     */
+    public function unserialize($value)
+    {
+        return unserialize($value);
+    }
 }
