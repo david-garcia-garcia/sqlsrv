@@ -6,10 +6,12 @@
   "authors": [
     {
       "name": "Kevin Nowaczyk",
+      "role": "Lead Developer",
       "homepage": "https://github.com/Beakerboy"
     },
     {
       "name": "David Garcia",
+      "role": "Contributor"
     }
   ],
   "autoload": {
