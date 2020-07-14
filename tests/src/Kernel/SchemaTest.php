@@ -82,7 +82,7 @@ class SchemaTest extends DatabaseTestBase {
   public function testDropTableComment() {
     // Drop table and ensure comment does not exist.
     $this->schema->dropTable('test');
-    $this->assertFalse($this->schema->getComment('test'));
+    $this->assertEmpty($this->schema->getComment('test'));
 
     $this->schema->createTable('test', $this->table);
 
@@ -98,7 +98,7 @@ class SchemaTest extends DatabaseTestBase {
 
     // Drop field and ensure comment does not exist.
     $this->schema->dropField('test', 'name');
-    $this->assertFalse($this->schema->getComment('test', 'name'));
+    $this->assertEmpty($this->schema->getComment('test', 'name'));
 
     // Add field with different description.
     $spec = $this->table['fields']['name'];
@@ -251,7 +251,7 @@ class SchemaTest extends DatabaseTestBase {
    */
   public function testIntroscpectSchemaException() {
     $this->expectException(SchemaObjectDoesNotExistException::class);
-    $this->schema->introspectIndexSchema('test_new');
+    $this->schema->getTableIntrospection('test_new');
   }
 
   /**
