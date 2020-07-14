@@ -109,20 +109,20 @@ test_script:
   - cmd: cd /d C:\projects\drupal-project
   - cmd: mkdir %TestLogDir%\testresults\
   - cmd: echo Tests not run because they need to be updated as they are using deprecated implementations
-  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Unit\OrderByTest > nul 2> nul
-  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Unit\SqlsrvConditionTest > nul 2> nul
-  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Unit\SqlsrvConnectionTest > nul 2> nul
-  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Kernel\SchemaTest > nul 2> nul
-  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Kernel\SelectTest > nul 2> nul
-  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Kernel\AliasTest > nul 2> nul
-  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Kernel\ConditionTest > nul 2> nul
-  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Kernel\DeleteTruncateTest > nul 2> nul
-  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Kernel\MergeTest > nul 2> nul
-  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Kernel\ParameterTest > nul 2> nul
-  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Kernel\SchemaTest > nul 2> nul
-  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Kernel\SelectTest > nul 2> nul
-  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Kernel\SqlsrvTest > nul 2> nul
-  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Kernel\UpdateTest > nul 2> nul
+  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Unit\OrderByTest 2>&1 > "%TestLogDir%\tests.log"
+  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Unit\SqlsrvConditionTest 2>&1 > "%TestLogDir%\tests.log"
+  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Unit\SqlsrvConnectionTest 2>&1 > "%TestLogDir%\tests.log"
+  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Kernel\SchemaTest 2>&1 > "%TestLogDir%\tests.log"
+  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Kernel\SelectTest 2>&1 > "%TestLogDir%\tests.log"
+  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Kernel\AliasTest 2>&1 > "%TestLogDir%\tests.log"
+  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Kernel\ConditionTest 2>&1 > "%TestLogDir%\tests.log"
+  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Kernel\DeleteTruncateTest 2>&1 > "%TestLogDir%\tests.log"
+  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Kernel\MergeTest 2>&1 > "%TestLogDir%\tests.log"
+  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Kernel\ParameterTest 2>&1 > "%TestLogDir%\tests.log"
+  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Kernel\SchemaTest 2>&1 > "%TestLogDir%\tests.log"
+  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Kernel\SelectTest 2>&1 > "%TestLogDir%\tests.log"
+  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Kernel\SqlsrvTest 2>&1 > "%TestLogDir%\tests.log"
+  - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Kernel\UpdateTest 2>&1 > "%TestLogDir%\tests.log"
 on_finish:
   - ps: echo "on_finish start";
   - ps: Stop-Transcript
