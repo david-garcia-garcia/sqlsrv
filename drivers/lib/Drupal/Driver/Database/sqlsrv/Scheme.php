@@ -2,6 +2,7 @@
 
 namespace Drupal\Driver\Database\sqlsrv;
 
+use Drupal\Core\Database\SchemaObjectDoesNotExistException;
 use Drupal\Driver\Database\sqlsrv\PDO\Connection;
 use Drupal\Driver\Database\sqlsrv\Settings\ConstraintTypes;
 use Drupal\Driver\Database\sqlsrv\Settings\RecoveryModel;
@@ -481,7 +482,7 @@ EOF;
     // We should have some column data here, otherwise there is a
     // chance that the table does not exist.
     if (empty($info['columns']) && !$this->TableExists($table)) {
-      throw new \Exception("Table {$table} does not exist.", 25663);
+      throw new SchemaObjectDoesNotExistException("Table {$table} does not exist.", 25663);
     }
 
     // If we have computed columns, it is important to know what other columns they depend on!

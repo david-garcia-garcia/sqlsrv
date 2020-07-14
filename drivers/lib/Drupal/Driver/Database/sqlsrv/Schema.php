@@ -30,6 +30,12 @@ class Schema extends DatabaseSchema
    */
   protected $connection;
   /**
+   * Inside the same transaction, you won't be able to read uncommited extended properties
+   * leading to SQL Exception if calling sp_addextendedproperty twice on same object, so we
+   * need to keep in memory track.
+   */
+  protected $columnComments = [];
+  /**
    * Default schema for SQL Server databases.
    */
   public $defaultSchema = 'dbo';
@@ -230,12 +236,10 @@ class Schema extends DatabaseSchema
    */
   public function CommentCreateOrUpdate($value, $table = null, $column = null): void
   {
-    // Inside the same transaction, you won't be able to read uncommited extended properties
-    // leading to SQL Exception if calling sp_addextendedproperty twice on same object.
-    static $columns = array();
-
     $schema = $this->GetDefaultSchema();
     $name = 'MS_Description';
+
+    $columns = $this->columnComments;
 
     // Determine if a value exists for this database object.
     $key = $schema . '.' . $table . '.' . $column;
@@ -245,7 +249,7 @@ class Schema extends DatabaseSchema
       $result = $this->CommentGet($table, $column);
     }
 
-    $columns[$key] = $value;
+    $columnComments[$key] = $value;
 
     // Only continue if the new value is different from the existing value.
     $sql = '';
@@ -813,6 +817,11 @@ class Schema extends DatabaseSchema
       ':new' => "{$field}_old",
       ':type' => 'COLUMN',
     ));
+    // Remove the comment from the transaction static cache
+    $schema = $this->GetDefaultSchema();
+    unset($this->columnComments[$schema . '.' . $table . '.' . $field]);
+    // Clear introspection cache
+    $this->connection->Scheme()->TableDetailsInvalidate($table);
     // If the new column does not allow nulls, we need to
     // create it first as nullable, then either migrate
     // data from previous column or populate default values.
@@ -1189,6 +1198,11 @@ class Schema extends DatabaseSchema
    */
   public function addUniqueKey($table, $name, $fields)
   {
+    // This method expects an array of fields, using a stirng here is out of spec... but let's support it.
+    if (is_string($fields)) {
+      $fields = [$fields];
+    }
+
     if (!$this->tableExists($table)) {
       throw new DatabaseSchemaObjectDoesNotExistException(t("Cannot add unique key %name to table %table: table doesn't exist.", array('%table' => $table, '%name' => $name)));
     }
