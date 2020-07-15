@@ -123,6 +123,7 @@ test_script:
   - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Kernel\SelectTest 2>&1 > "%TestLogDir%\tests.log"
   - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Kernel\SqlsrvTest 2>&1 > "%TestLogDir%\tests.log"
   - cmd: php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml %TestLogDir%\testresults\ "Common" --class Drupal\Tests\sqlsrv\Kernel\UpdateTest 2>&1 > "%TestLogDir%\tests.log"
+  # After tests, try istalling all core modules\contrib\sqlsrv  - cmd: drupal module:install simpletest
 on_finish:
   - ps: echo "on_finish start";
   - ps: Stop-Transcript

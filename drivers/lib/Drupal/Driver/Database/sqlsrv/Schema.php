@@ -869,7 +869,7 @@ class Schema extends DatabaseSchema
       $new_keys['unique keys'] = [];
     }
     if ($unique_key && !in_array($field_new, $new_keys['unique keys'])) {
-      $new_keys['unique keys'][] = $field_new;
+      $new_keys['unique keys'][$field] = [$field_new];
     }
     // Drop the old field.
     $this->dropField($table, $field . '_old');
@@ -1198,11 +1198,6 @@ class Schema extends DatabaseSchema
    */
   public function addUniqueKey($table, $name, $fields)
   {
-    // This method expects an array of fields, using a stirng here is out of spec... but let's support it.
-    if (is_string($fields)) {
-      $fields = [$fields];
-    }
-
     if (!$this->tableExists($table)) {
       throw new DatabaseSchemaObjectDoesNotExistException(t("Cannot add unique key %name to table %table: table doesn't exist.", array('%table' => $table, '%name' => $name)));
     }
