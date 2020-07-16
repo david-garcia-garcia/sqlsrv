@@ -2,11 +2,13 @@
 
 namespace Drupal\sqlsrv\Indexes;
 
+use Drupal\Driver\Database\sqlsrv\Utils;
+
 /**
  * Represents a database Index.
  */
-class Index {
-
+class Index
+{
   private $table;
 
   private $name;
@@ -15,12 +17,12 @@ class Index {
 
   /**
    * Create an instance of Index.
-   * 
-   * @param mixed $uri 
-   * @throws \Exception 
+   *
+   * @param mixed $uri
+   * @throws \Exception
    */
-  public function __construct($uri) {
-
+  public function __construct($uri)
+  {
     $name = pathinfo($uri, PATHINFO_FILENAME);
     $parts = explode('@', basename($name));
 
@@ -36,28 +38,31 @@ class Index {
 
   /**
    * Table name.
-   * 
+   *
    * @return string
    */
-  public function GetTable() {
+  public function GetTable()
+  {
     return $this->table;
   }
 
   /**
    * Index name.
-   * 
+   *
    * @return string
    */
-  public function GetName() {
+  public function GetName()
+  {
     return $this->name;
   }
 
   /**
    * Get the SQL statement to create this index.
-   * 
+   *
    * @return string
    */
-  public function GetCode() {
-    return \mssql\Utils::removeUtf8Bom($this->code);
+  public function GetCode()
+  {
+    return Utils::removeUtf8Bom($this->code);
   }
 }

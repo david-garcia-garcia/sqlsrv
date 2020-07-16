@@ -41,7 +41,7 @@ class Connection extends DatabaseConnection
    *
    * @var ConnectionSettings
    */
-  public $driver_settings = NULL;
+  public $driver_settings = null;
 
   /**
    * Override of DatabaseConnection::driver().
@@ -92,7 +92,7 @@ class Connection extends DatabaseConnection
     $this->statementClass = Statement::class;
     parent::__construct($connection, $connection_options);
     // This driver defaults to transaction support, except if explicitly passed FALSE.
-    $this->transactionSupport = !isset($connection_options['transactions']) || $connection_options['transactions'] !== FALSE;
+    $this->transactionSupport = !isset($connection_options['transactions']) || $connection_options['transactions'] !== false;
     $this->transactionalDDLSupport = $this->transactionSupport;
     // Store connection options for future reference.
     $this->connectionOptions = &$connection_options;
@@ -129,8 +129,8 @@ class Connection extends DatabaseConnection
     $connection_options['pdo'][PDO::ATTR_ERRMODE] = PDO::ERRMODE_EXCEPTION;
     // Use native types. This makes fetches x3 faster!
     // @see https://github.com/Microsoft/msphpsql/issues/189
-    $connection_options['pdo'][PDO::SQLSRV_ATTR_FETCHES_NUMERIC_TYPE] = TRUE;
-    $connection_options['pdo'][PDO::ATTR_STRINGIFY_FETCHES] = FALSE;
+    $connection_options['pdo'][PDO::SQLSRV_ATTR_FETCHES_NUMERIC_TYPE] = true;
+    $connection_options['pdo'][PDO::ATTR_STRINGIFY_FETCHES] = false;
     // Actually instantiate the PDO.
     try {
       $pdo = new ConnectionBase($dsn, $connection_options['username'], $connection_options['password'], $connection_options['pdo']);
@@ -178,7 +178,7 @@ class Connection extends DatabaseConnection
   public function prepareQuery($query, array $options = [])
   {
     // Preprocess the query.
-    $bypass = isset($options['bypass_query_preprocess']) && $options['bypass_query_preprocess'] == TRUE ? TRUE : FALSE;
+    $bypass = isset($options['bypass_query_preprocess']) && $options['bypass_query_preprocess'] == true ? true : false;
 
     if (!$bypass) {
       $query = $this->preprocessQuery($query);
@@ -188,16 +188,16 @@ class Connection extends DatabaseConnection
     // only specific for this preparation and will only override
     // the global configuration if set to different than NULL.
     $options = array_merge(array(
-      'insecure' => FALSE,
+      'insecure' => false,
       'statement_caching' => $this->driver_settings->GetStatementCachingMode(),
       'direct_query' => $this->driver_settings->GetDefaultDirectQueries(),
-      'prefix_tables' => TRUE,
-      'integrityretry' => FALSE,
-      'resilientretry' => TRUE,
+      'prefix_tables' => true,
+      'integrityretry' => false,
+      'resilientretry' => true,
     ), $options);
 
     // Prefix tables. There is no global setting for this.
-    if ($options['prefix_tables'] !== FALSE) {
+    if ($options['prefix_tables'] !== false) {
       $query = $this->prefixTables($query);
     }
     // The statement caching settings only affect the storage
@@ -209,7 +209,7 @@ class Connection extends DatabaseConnection
     #region PDO Options
     $pdo_options = [];
     // Set insecure options if requested so.
-    if ($options['insecure'] === TRUE) {
+    if ($options['insecure'] === true) {
       // We have to log this, prepared statements are a security RISK.
       // watchdog('SQL Server Driver', 'An insecure query has been executed against the database. This is not critical, but worth looking into: %query', array('%query' => $query));
       // These are defined in class Connection.
@@ -233,14 +233,14 @@ class Connection extends DatabaseConnection
       // Transact-SQL code.
       // Never use this when you need special column binding.
       // THIS ONLY WORKS IF SET AT THE STATEMENT LEVEL.
-      $pdo_options[PDO::ATTR_EMULATE_PREPARES] = TRUE;
+      $pdo_options[PDO::ATTR_EMULATE_PREPARES] = true;
     }
     // We need this behaviour to make UPSERT and MERGE more robust.
-    if ($options['integrityretry'] == TRUE) {
-      $pdo_options[\Drupal\Driver\Database\sqlsrv\PDO\Connection::PDO_RETRYONINTEGRITYVIOLATION] = TRUE;
+    if ($options['integrityretry'] == true) {
+      $pdo_options[\Drupal\Driver\Database\sqlsrv\PDO\Connection::PDO_RETRYONINTEGRITYVIOLATION] = true;
     }
-    if ($options['resilientretry'] == TRUE) {
-      $pdo_options[\Drupal\Driver\Database\sqlsrv\PDO\Connection::PDO_RESILIENTRETRY] = TRUE;
+    if ($options['resilientretry'] == true) {
+      $pdo_options[\Drupal\Driver\Database\sqlsrv\PDO\Connection::PDO_RESILIENTRETRY] = true;
     }
     // We run the statements in "direct mode" because the way PDO prepares
     // statement in non-direct mode cause temporary tables to be destroyed
@@ -253,8 +253,8 @@ class Connection extends DatabaseConnection
     // you should execute your queries with PDO::SQLSRV_ATTR_DIRECT_QUERY set to True.
     // For example, if you use temporary tables in your queries, PDO::SQLSRV_ATTR_DIRECT_QUERY must be set
     // to True.
-    if ($this->driver_settings->GetStatementCachingMode() != 'always' || $options['direct_query'] == TRUE) {
-      $pdo_options[PDO::SQLSRV_ATTR_DIRECT_QUERY] = TRUE;
+    if ($this->driver_settings->GetStatementCachingMode() != 'always' || $options['direct_query'] == true) {
+      $pdo_options[PDO::SQLSRV_ATTR_DIRECT_QUERY] = true;
     }
     // It creates a cursor for the query, which allows you to iterate over the result set
     // without fetching the whole result at once. A scrollable cursor, specifically, is one that allows
@@ -270,7 +270,7 @@ class Connection extends DatabaseConnection
     // Call our overriden prepare.
     $stmt = $this->connection->prepare($query, $pdo_options);
     // If statement caching is enabled, store current statement for reuse.
-    if ($options['statement_caching'] === TRUE) {
+    if ($options['statement_caching'] === true) {
       $this->statement_cache[$query] = $stmt;
     }
     return $stmt;
@@ -287,22 +287,22 @@ class Connection extends DatabaseConnection
   {
     // The current user service might not be available
     // if this is too early bootstrap
-    $uid = NULL;
+    $uid = null;
     static $loading_user;
     // Use loading user to prevent recursion!
     // Because the user entity can be stored in
     // the database itself.
     if (empty($loading_user)) {
       try {
-        $loading_user = TRUE;
+        $loading_user = true;
         $oUser = \Drupal::currentUser();
-        $uid = NULL;
-        if ($oUser != NULL) {
+        $uid = null;
+        if ($oUser != null) {
           $uid = $oUser->getAccount()->id();
         }
       } catch (\Exception $e) {
       } finally {
-        $loading_user = FALSE;
+        $loading_user = false;
       }
     }
     // Drupal specific aditional information for the dump.
@@ -398,6 +398,10 @@ class Connection extends DatabaseConnection
    */
   public function prefixTable($table)
   {
+    if (empty($table)) {
+      return $table;
+    }
+
     $table = $this->escapeTable($table);
     return $this->prefixTables("{{$table}}");
   }
@@ -457,7 +461,7 @@ class Connection extends DatabaseConnection
     // SQL Server requires that temporary tables to be non-qualified.
     $tablename = '##' . $this->generateTemporaryTableName();
     // Temporary tables cannot be introspected so using them is limited on some scenarios.
-    if (isset($options['real_table']) && $options['real_table'] === TRUE) {
+    if (isset($options['real_table']) && $options['real_table'] === true) {
       $tablename = trim($tablename, "#");
     }
     $prefixes = $this->prefixes;
@@ -482,23 +486,23 @@ class Connection extends DatabaseConnection
   {
     // Use default values if not already set.
     $options += $this->defaultOptions();
-    $stmt = NULL;
+    $stmt = null;
     try {
       // We allow either a pre-bound statement object or a literal string.
       // In either case, we want to end up with an executed statement object,
       // which we pass to PDOStatement::execute.
       if ($query instanceof StatementInterface) {
         $stmt = $query;
-        $stmt->execute(NULL, $options);
+        $stmt->execute(null, $options);
       } else {
         $this->expandArguments($query, $args);
-        $insecure = isset($options['insecure']) ? $options['insecure'] : FALSE;
+        $insecure = isset($options['insecure']) ? $options['insecure'] : false;
         // Try to detect duplicate place holders, this check's performance
         // is not a good addition to the driver, but does a good job preventing
         // duplicate placeholder errors.
         $argcount = count($args);
-        if ($insecure === TRUE || $argcount >= 2100 || ($argcount != substr_count($query, ':'))) {
-          $insecure = TRUE;
+        if ($insecure === true || $argcount >= 2100 || ($argcount != substr_count($query, ':'))) {
+          $insecure = true;
         }
         $stmt = $this->prepareQuery($query, array('insecure' => $insecure));
         $stmt->execute($args, $options);
@@ -510,12 +514,12 @@ class Connection extends DatabaseConnection
         case Database::RETURN_STATEMENT:
           return $stmt;
         case Database::RETURN_AFFECTED:
-          $stmt->allowRowCount = TRUE;
+          $stmt->allowRowCount = true;
           return $stmt->rowCount();
         case Database::RETURN_INSERT_ID:
           return $this->connection->lastInsertId();
         case Database::RETURN_NULL:
-          return NULL;
+          return null;
         default:
           throw new \PDOException('Invalid return directive: ' . $options['return']);
       }
@@ -563,7 +567,7 @@ class Connection extends DatabaseConnection
       }
       $message = $e->getMessage();
       /** @var \Drupal\Core\Database\DatabaseException $exception */
-      $exception = NULL;
+      $exception = null;
       // Match all SQLSTATE 23xxx errors.
       if (substr($e->getCode(), -6, -3) == '23') {
         $exception = new IntegrityConstraintViolationException($message, $e->getCode(), $e);
@@ -585,7 +589,7 @@ class Connection extends DatabaseConnection
       $exception->args = $e->args;
       throw $exception;
     }
-    return NULL;
+    return null;
   }
 
   /**
@@ -603,9 +607,9 @@ class Connection extends DatabaseConnection
   {
     // Use default values if not already set.
     $options += $this->defaultOptions();
-    $stmt = NULL;
+    $stmt = null;
     try {
-      $options['bypass_query_preprocess'] = TRUE;
+      $options['bypass_query_preprocess'] = true;
       $stmt = $this->prepareQuery($query, $options);
       $stmt->execute($args, $options);
       // Depending on the type of query we may need to return a different value.
@@ -615,12 +619,12 @@ class Connection extends DatabaseConnection
         case Database::RETURN_STATEMENT:
           return $stmt;
         case Database::RETURN_AFFECTED:
-          $stmt->allowRowCount = TRUE;
+          $stmt->allowRowCount = true;
           return $stmt->rowCount();
         case Database::RETURN_INSERT_ID:
           return $this->connection->lastInsertId();
         case Database::RETURN_NULL:
-          return NULL;
+          return null;
         default:
           throw new \PDOException('Invalid return directive: ' . $options['return']);
       }
@@ -670,6 +674,81 @@ class Connection extends DatabaseConnection
   }
 
   /**
+   * {@inheritdoc}
+   *
+   * Adding schema to the connection URL.
+   */
+  public static function createConnectionOptionsFromUrl($url, $root)
+  {
+    $database = parent::createConnectionOptionsFromUrl($url, $root);
+    $url_components = parse_url($url);
+    if (isset($url_components['query'])) {
+      $query = [];
+      parse_str($url_components['query'], $query);
+      if (isset($query['schema'])) {
+        $database['schema'] = $query['schema'];
+      }
+      $database['cache_schema'] = isset($query['cache_schema']) && $query['cache_schema'] == 'true' ? TRUE : FALSE;
+    }
+    return $database;
+  }
+
+  /**
+   * {@inheritdoc}
+   *
+   * Adding schema to the connection URL.
+   */
+  public static function createUrlFromConnectionOptions(array $connection_options)
+  {
+    if (!isset($connection_options['driver'], $connection_options['database'])) {
+      throw new \InvalidArgumentException("As a minimum, the connection options array must contain at least the 'driver' and 'database' keys");
+    }
+
+    $user = '';
+    if (isset($connection_options['username'])) {
+      $user = $connection_options['username'];
+      if (isset($connection_options['password'])) {
+        $user .= ':' . $connection_options['password'];
+      }
+      $user .= '@';
+    }
+
+    $host = empty($connection_options['host']) ? 'localhost' : $connection_options['host'];
+
+    $db_url = $connection_options['driver'] . '://' . $user . $host;
+
+    if (isset($connection_options['port'])) {
+      $db_url .= ':' . $connection_options['port'];
+    }
+
+    $db_url .= '/' . $connection_options['database'];
+    $query = [];
+    if (isset($connection_options['module'])) {
+      $query['module'] = $connection_options['module'];
+    }
+    if (isset($connection_options['schema'])) {
+      $query['schema'] = $connection_options['schema'];
+    }
+    if (isset($connection_options['cache_schema'])) {
+      $query['cache_schema'] = $connection_options['cache_schema'];
+    }
+
+    if (count($query) > 0) {
+      $parameters = [];
+      foreach ($query as $key => $values) {
+        $parameters[] = $key . '=' . $values;
+      }
+      $query_string = implode("&amp;", $parameters);
+      $db_url .= '?' . $query_string;
+    }
+    if (isset($connection_options['prefix']['default']) && $connection_options['prefix']['default'] !== '') {
+      $db_url .= '#' . $connection_options['prefix']['default'];
+    }
+
+    return $db_url;
+  }
+
+  /**
    * Internal function: add range options to a query.
    *
    * This cannot be set protected because it is used in other parts of the
@@ -684,7 +763,7 @@ class Connection extends DatabaseConnection
       $query = preg_replace('/^\s*SELECT(\s*DISTINCT)?/Dsi', 'SELECT$1 TOP(' . $count . ')', $query);
     } else {
       if ($this->connection->Scheme()->EngineVersionNumber() >= 11) {
-        if (strripos($query, 'ORDER BY') === FALSE) {
+        if (strripos($query, 'ORDER BY') === false) {
           $query = "SELECT Q.*, 0 as TempSort FROM ({$query}) as Q ORDER BY TempSort OFFSET {$from} ROWS FETCH NEXT {$count} ROWS ONLY";
         } else {
           $query = "{$query} OFFSET {$from} ROWS FETCH NEXT {$count} ROWS ONLY";
@@ -713,7 +792,7 @@ class Connection extends DatabaseConnection
       'LIKE' => [],
       'NOT LIKE' => [],
     );
-    return isset($specials[$operator]) ? $specials[$operator] : NULL;
+    return isset($specials[$operator]) ? $specials[$operator] : null;
   }
 
   /**
@@ -770,9 +849,9 @@ class Connection extends DatabaseConnection
   /**
    * Overriden to allow transaction settings.
    */
-  public function startTransaction($name = '', DatabaseTransactionSettings $settings = NULL)
+  public function startTransaction($name = '', DatabaseTransactionSettings $settings = null)
   {
-    if ($settings == NULL) {
+    if ($settings == null) {
       $settings = DatabaseTransactionSettings::GetDefaults();
     }
     return new Transaction($this, $name, $settings);
@@ -797,7 +876,7 @@ class Connection extends DatabaseConnection
     // We need to find the point we're rolling back to, all other savepoints
     // before are no longer needed. If we rolled back other active savepoints,
     // we need to throw an exception.
-    $rolled_back_other_active_savepoints = FALSE;
+    $rolled_back_other_active_savepoints = false;
     while ($savepoint = array_pop($this->transactionLayers)) {
       if ($savepoint['name'] == $savepoint_name) {
         // If it is the last the transaction in the stack, then it is not a
@@ -806,7 +885,7 @@ class Connection extends DatabaseConnection
         if (empty($this->transactionLayers)) {
           break;
         }
-        if ($savepoint['started'] == TRUE) {
+        if ($savepoint['started'] == true) {
           $this->query_direct('ROLLBACK TRANSACTION ' . $savepoint['name']);
         }
         $this->popCommittableTransactions();
@@ -815,7 +894,7 @@ class Connection extends DatabaseConnection
         }
         return;
       } else {
-        $rolled_back_other_active_savepoints = TRUE;
+        $rolled_back_other_active_savepoints = true;
       }
     }
     $this->connection->rollBack();
@@ -839,9 +918,9 @@ class Connection extends DatabaseConnection
    * @return void
    * @throws DatabaseTransactionNameNonUniqueException
    */
-  public function pushTransaction($name, $settings = NULL)
+  public function pushTransaction($name, $settings = null)
   {
-    if ($settings == NULL) {
+    if ($settings == null) {
       $settings = DatabaseTransactionSettings::GetDefaults();
     }
     if (!$this->supportsTransactions()) {
@@ -850,7 +929,7 @@ class Connection extends DatabaseConnection
     if (isset($this->transactionLayers[$name])) {
       throw new DatabaseTransactionNameNonUniqueException($name . " is already in use.");
     }
-    $started = FALSE;
+    $started = false;
     // If we're already in a transaction.
     // TODO: Transaction scope Options is not working properly
     // for first level transactions. It assumes that - always - a first level
@@ -859,7 +938,7 @@ class Connection extends DatabaseConnection
       switch ($settings->Get_ScopeOption()) {
         case DatabaseTransactionScopeOption::RequiresNew():
           $this->query_execute('SAVE TRANSACTION ' . $name);
-          $started = TRUE;
+          $started = true;
           break;
         case DatabaseTransactionScopeOption::Required():
           // We are already in a transaction, do nothing.
@@ -886,7 +965,7 @@ class Connection extends DatabaseConnection
       $this->connection->beginTransaction();
     }
     // Store the name and settings in the stack.
-    $this->transactionLayers[$name] = array('settings' => $settings, 'active' => TRUE, 'name' => $name, 'started' => $started);
+    $this->transactionLayers[$name] = array('settings' => $settings, 'active' => true, 'name' => $name, 'started' => $started);
   }
 
   /**
@@ -917,7 +996,7 @@ class Connection extends DatabaseConnection
       return;
     }
     // Mark this layer as committable.
-    $this->transactionLayers[$name]['active'] = FALSE;
+    $this->transactionLayers[$name]['active'] = false;
     $this->popCommittableTransactions();
   }
 

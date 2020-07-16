@@ -26,31 +26,31 @@ class Connection extends PDO
   /**
    * @var Scheme
    */
-  private $scheme = NULL;
+  private $scheme = null;
   /**
    * @var CacheFactoryInterface
    */
-  private $cache = NULL;
+  private $cache = null;
   /**
    * If the transaction is doomed.
    *
    * @var bool
    */
-  private $doomed_transaction = FALSE;
+  private $doomed_transaction = false;
   /**
    * The original exception that doomed the transaction.
    *
    * @var \Exception
    */
-  private $doomed_transaction_exception = NULL;
+  private $doomed_transaction_exception = null;
   /**
    * If we are currently inside a transaction.
    *
    * @var bool
    */
-  private $in_transaction = FALSE;
+  private $in_transaction = false;
 
-  public function __construct($dsn, $username = NULL, $password = NULL, array $driver_options = array(), CacheFactoryInterface $cache = NULL)
+  public function __construct($dsn, $username = null, $password = null, array $driver_options = array(), CacheFactoryInterface $cache = null)
   {
     if (empty($cache)) {
       $this->cache = new CacheFactoryDefault(md5(implode(':', [$dsn, $username, $password])));
@@ -116,7 +116,7 @@ class Connection extends PDO
   /**
    * {@inheritdoc}
    */
-  public function query($statement, $fetch_mode = NULL, $p1 = NULL, $p2 = NULL)
+  public function query($statement, $fetch_mode = null, $p1 = null, $p2 = null)
   {
     // By overriding this we are just making sure that we are able to INTERCEPT
     // any exception that might happen during a transaction.
@@ -145,8 +145,8 @@ class Connection extends PDO
     return array(
       'target' => 'default',
       'fetch' => \PDO::FETCH_OBJ,
-      'throw_exception' => TRUE,
-      'allow_delimiter_in_query' => FALSE,
+      'throw_exception' => true,
+      'allow_delimiter_in_query' => false,
     );
   }
 
@@ -163,7 +163,7 @@ class Connection extends PDO
   {
     try {
       // Make sure we are not preparing statements.
-      $options[PDO::SQLSRV_ATTR_DIRECT_QUERY] = TRUE;
+      $options[PDO::SQLSRV_ATTR_DIRECT_QUERY] = true;
       /** @var Statement */
       $stmt = $this->prepare($query, $options);
       $stmt->execute($args);
@@ -179,8 +179,8 @@ class Connection extends PDO
    */
   public function rollBack()
   {
-    $this->in_transaction = FALSE;
-    $this->doomed_transaction = FALSE;
+    $this->in_transaction = false;
+    $this->doomed_transaction = false;
     return parent::rollBack();
   }
 
@@ -190,7 +190,7 @@ class Connection extends PDO
   public function beginTransaction()
   {
     parent::beginTransaction();
-    $this->in_transaction = TRUE;
+    $this->in_transaction = true;
   }
 
   /**
@@ -201,10 +201,10 @@ class Connection extends PDO
     if ($this->doomed_transaction) {
       // We are about to throw an Exception, this is the last word of warning...
       // so it is safe to release the lock from the connection now...
-      $this->doomed_transaction = FALSE;
+      $this->doomed_transaction = false;
       $this->ThrowDoomedTransactionException();
     }
-    $this->in_transaction = FALSE;
+    $this->in_transaction = false;
     return parent::commit();
   }
 
@@ -214,7 +214,7 @@ class Connection extends PDO
    *
    * @var array
    */
-  protected $allowed_pdo_exception_codes = array('42S02' => TRUE);
+  protected $allowed_pdo_exception_codes = array('42S02' => true);
 
   /**
    * Only to be used by statements to notify of a PDO exception.
@@ -228,7 +228,7 @@ class Connection extends PDO
       // Some PDO exceptions are "safe" and will not doom the
       // transaction.
       if (!isset($this->allowed_pdo_exception_codes[$e->getCode()])) {
-        $this->doomed_transaction = TRUE;
+        $this->doomed_transaction = true;
         $this->doomed_transaction_exception = $e;
       }
     }
@@ -291,12 +291,12 @@ class Connection extends PDO
    * the error itself will be found in the connection and no in the statement.
    *
    */
-  public function ThrowPdoException(Statement &$statement = NULL, \PDOException $e = NULL)
+  public function ThrowPdoException(Statement &$statement = null, \PDOException $e = null)
   {
     // This is what a SQL Server PDO "no error" looks like.
-    $null_error = array(0 => '00000', 1 => NULL, 2 => NULL);
+    $null_error = array(0 => '00000', 1 => null, 2 => null);
     $error_info_connection = $this->errorInfo();
-    if ($error_info_connection == $null_error && $e !== NULL) {
+    if ($error_info_connection == $null_error && $e !== null) {
       throw $e;
     }
     $error_info_statement = !empty($statement) ? $statement->errorInfo() : $null_error;

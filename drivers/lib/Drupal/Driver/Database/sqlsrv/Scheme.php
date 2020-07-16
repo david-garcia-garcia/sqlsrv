@@ -2,6 +2,7 @@
 
 namespace Drupal\Driver\Database\sqlsrv;
 
+use Drupal\Core\Database\SchemaObjectDoesNotExistException;
 use Drupal\Driver\Database\sqlsrv\PDO\Connection;
 use Drupal\Driver\Database\sqlsrv\Settings\ConstraintTypes;
 use Drupal\Driver\Database\sqlsrv\Settings\RecoveryModel;
@@ -24,7 +25,7 @@ class Scheme
    *
    * @var Connection
    */
-  private $cnn = NULL;
+  private $cnn = null;
 
   public function __construct(Connection $cnn)
   {
@@ -116,7 +117,7 @@ class Scheme
   {
     return $this->cnn
         ->query_execute("SELECT 1 FROM INFORMATION_SCHEMA.columns WHERE table_name = '{$table}' AND column_name = '{$column}'")
-        ->fetchField() !== FALSE;
+        ->fetchField() !== false;
   }
 
   /**
@@ -141,7 +142,6 @@ class Scheme
    */
   public function StatisticsExists($table, $statistics)
   {
-
     $query = <<<EOF
 SELECT stat.name AS Statistics,
  OBJECT_NAME(stat.object_id) AS Object,
@@ -158,7 +158,7 @@ EOF;
           ':table' => $table,
           ':statistics' => $statistics,
         ))
-        ->fetchField() !== FALSE;
+        ->fetchField() !== false;
   }
 
   /**
@@ -170,7 +170,7 @@ EOF;
   {
     return $this->cnn
         ->query_execute("SELECT 1 FROM sys.triggers WHERE name = :name", array(':name' => $name))
-        ->fetchField() !== FALSE;
+        ->fetchField() !== false;
   }
 
   /**
@@ -192,7 +192,7 @@ EOF;
   {
     return $this->cnn
         ->query_execute("SELECT 1 FROM INFORMATION_SCHEMA.views WHERE table_name = :name", array(':name' => $name))
-        ->fetchField() !== FALSE;
+        ->fetchField() !== false;
   }
 
   /**
@@ -224,21 +224,21 @@ EOF;
    * @return boolean
    *   True if the table exists, false otherwise.
    */
-  public function TableExists($table, $refresh = FALSE)
+  public function TableExists($table, $refresh = false)
   {
 
     // Account for empty table names..
     if (empty($table)) {
-      return FALSE;
+      return false;
     }
 
     $bin = $this->cnn->Cache('sqlsrv-table-exists');
 
     if (!$bin->Get('@@preloaded')) {
       foreach ($this->cnn->query_execute("SELECT table_name FROM INFORMATION_SCHEMA.tables") as $t) {
-        $bin->Set($t->table_name, TRUE);
+        $bin->Set($t->table_name, true);
       }
-      $bin->Set('@@preloaded', TRUE);
+      $bin->Set('@@preloaded', true);
     }
 
     if (!$refresh && $cache = $bin->Get($table)) {
@@ -246,7 +246,7 @@ EOF;
     }
 
     // Temporary tables and regular tables cannot be verified in the same way.
-    $query = NULL;
+    $query = null;
 
     if ($table[0] == '#') {
       $table .= '%';
@@ -255,7 +255,7 @@ EOF;
       $query = "SELECT 1 FROM INFORMATION_SCHEMA.tables WHERE table_name = :table";
     }
 
-    $exists = $this->cnn->query_execute($query, [':table' => $table])->fetchField() !== FALSE;
+    $exists = $this->cnn->query_execute($query, [':table' => $table])->fetchField() !== false;
 
     if ($exists) {
       $bin->Set($table, $exists);
@@ -274,12 +274,12 @@ EOF;
    */
   public function TableDrop($table)
   {
-    if (!$this->TableExists($table, TRUE)) {
-      return FALSE;
+    if (!$this->TableExists($table, true)) {
+      return false;
     }
     $this->cnn->query_execute("DROP TABLE [{$table}]");
     $this->cnn->Cache('sqlsrv-table-exists')->Clear($table);
-    return TRUE;
+    return true;
   }
 
   /**
@@ -298,7 +298,7 @@ EOF;
         }
       }
     }
-    return FALSE;
+    return false;
   }
 
   /**
@@ -326,7 +326,7 @@ EOF;
    *
    * @return string
    */
-  public function removeSQLComments($sql, &$comments = NULL)
+  public function removeSQLComments($sql, &$comments = null)
   {
     $sqlComments = '@(([\'"]).*?[^\\\]\2)|((?:\#|--).*?$|/\*(?:[^/*]|/(?!\*)|\*(?!/)|(?R))*\*\/)\s*|(?<=;)\s+@ms';
     /* Commented version
@@ -380,84 +380,6 @@ EOF;
   }
 
   /**
-   * Get the description property of a table or column.
-   *
-   * @param string $table
-   *
-   * @param string $column
-   *
-   * @return string
-   */
-  public function CommentGet($table, $column = NULL)
-  {
-
-    $arguments = array('MS_Description', 'Schema', $this->GetDefaultSchema(), 'Table', $table);
-    if (!empty($column)) {
-      $arguments[] = 'column';
-      $arguments[] = $column;
-    }
-
-    $args = call_user_func_array(Utils::class . '::GetExtendedProperty', $arguments);
-
-    $extended_property = $this->cnn->query_execute($args['query'], $args['args'])->fetchAssoc();
-    if (is_array($extended_property)) {
-      return $extended_property['value'];
-    }
-    return '';
-  }
-
-  /**
-   * Return the SQL statement to create or update a description.
-   */
-  public function CommentCreate($value, $table = NULL, $column = NULL)
-  {
-
-    // Inside the same transaction, you won't be able to read uncommited extended properties
-    // leading to SQL Exception if calling sp_addextendedproperty twice on same object.
-    static $columns = array();
-
-    $schema = $this->GetDefaultSchema();
-    $name = 'MS_Description';
-
-    // Determine if a value exists for this database object.
-    $key = $schema . '.' . $table . '.' . $column;
-    if (isset($columns[$key]) && $this->cnn->inTransaction()) {
-      $result = $columns[$key];
-    } else {
-      $result = $this->CommentGet($table, $column);
-    }
-
-    $columns[$key] = $value;
-
-    // Only continue if the new value is different from the existing value.
-    $sql = '';
-    if ($result !== $value) {
-      if ($value == '') {
-        $sp = "sp_dropextendedproperty";
-        $sql = "EXEC " . $sp . " @name=N'" . $name;
-      } else {
-        if ($result != '') {
-          $sp = "sp_updateextendedproperty";
-        } else {
-          $sp = "sp_addextendedproperty";
-        }
-        $sql = "EXEC " . $sp . " @name=N'" . $name . "', @value=" . $value . "";
-      }
-      if (isset($schema)) {
-        $sql .= ",@level0type = N'Schema', @level0name = '" . $schema . "'";
-        if (isset($table_prefixed)) {
-          $sql .= ",@level1type = N'Table', @level1name = '" . $table_prefixed . "'";
-          if ($column !== NULL) {
-            $sql .= ",@level2type = N'Column', @level2name = '" . $column . "'";
-          }
-        }
-      }
-    }
-
-    return $sql;
-  }
-
-  /**
    * Invalidate cache for TableDetailsGet.
    *
    * @param string $table
@@ -468,7 +390,6 @@ EOF;
   }
 
   /**
-   * /**
    * Database introspection: fetch technical information about a table.
    *
    *   An array with the following structure:
@@ -510,14 +431,15 @@ EOF;
 
     // Initialize the information array.
     $info = [
-      'identity' => NULL,
+      'identity' => null,
       'identities' => [],
       'columns' => [],
       'columns_clean' => []
     ];
 
     // Don't use {} around information_schema.columns table.
-    $result = $this->cnn->query_execute("SELECT sysc.name, sysc.max_length, sysc.precision, sysc.collation_name,
+    $result = $this->cnn->query_execute(
+      "SELECT sysc.name, sysc.max_length, sysc.precision, sysc.collation_name,
                     sysc.is_nullable, sysc.is_ansi_padded, sysc.is_identity, sysc.is_computed, TYPE_NAME(sysc.user_type_id) as type,
                     syscc.definition,
                     sm.[text] as default_value
@@ -527,11 +449,12 @@ EOF;
                     LEFT JOIN sys.syscomments sm ON sm.id = sysc2.cdefault
                     WHERE sysc.object_id = OBJECT_ID(:table)
                     ",
-      array(':table' => $schema . '.' . $table));
+      array(':table' => $schema . '.' . $table)
+    );
 
     foreach ($result as $column) {
       if ($column->type == 'varbinary') {
-        $info['blobs'][$column->name] = TRUE;
+        $info['blobs'][$column->name] = true;
       }
 
       // Add the complete SQL Server type with length
@@ -559,7 +482,7 @@ EOF;
     // We should have some column data here, otherwise there is a
     // chance that the table does not exist.
     if (empty($info['columns']) && !$this->TableExists($table)) {
-      throw new \Exception("Table {$table} does not exist.", 25663);
+      throw new SchemaObjectDoesNotExistException("Table {$table} does not exist.", 25663);
     }
 
     // If we have computed columns, it is important to know what other columns they depend on!
@@ -579,7 +502,8 @@ EOF;
     }
 
     // Now introspect information about indexes
-    $result = $this->cnn->query_execute("select tab.[name]  as [table_name],
+    $result = $this->cnn->query_execute(
+      "select tab.[name]  as [table_name],
          idx.[name]  as [index_name],
          allc.[name] as [column_name],
          idx.[type_desc],
@@ -605,7 +529,8 @@ EOF;
     WHERE tab.object_id = OBJECT_ID(:table)
     ORDER BY tab.[name], idx.[index_id], idxc.[index_column_id]
                     ",
-      array(':table' => $schema . '.' . $table));
+      array(':table' => $schema . '.' . $table)
+    );
 
     foreach ($result as $index_column) {
       if (!isset($info['indexes'][$index_column->index_name])) {
@@ -708,7 +633,7 @@ EOF;
     // FT | AT = Assembly (CLR) Table Valued Function
     return $this->cnn
         ->query_execute("SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID('" . $function . "') AND type in (N'FN', N'IF', N'TF', N'FS', N'FT', N'AF')")
-        ->fetchField() !== FALSE;
+        ->fetchField() !== false;
   }
 
   /**
@@ -728,7 +653,7 @@ EOF;
    */
   private function IsVariableLengthType($type)
   {
-    $types = array('nvarchar' => TRUE, 'ntext' => TRUE, 'varchar' => TRUE, 'varbinary' => TRUE, 'image' => TRUE);
+    $types = array('nvarchar' => true, 'ntext' => true, 'varchar' => true, 'varbinary' => true, 'image' => true);
     return isset($types[$type]);
   }
 
@@ -740,7 +665,7 @@ EOF;
    * @return int
    *
    */
-  public function calculateClusteredIndexRowSizeBytes($table, $fields, $unique = TRUE)
+  public function calculateClusteredIndexRowSizeBytes($table, $fields, $unique = true)
   {
     // The fields must already be in the database to retrieve their real size.
     $info = $this->TableDetailsGet($table);
@@ -787,10 +712,10 @@ EOF;
    * @param string $collation
    *   Collation or empty for the default engine collation.
    */
-  public function DatabaseCreate($name, $collation = NULL)
+  public function DatabaseCreate($name, $collation = null)
   {
     // Create the database.
-    if ($collation !== NULL) {
+    if ($collation !== null) {
       $this->cnn->query_execute("CREATE DATABASE $name COLLATE " . $collation);
     } else {
       $this->cnn->query_execute("CREATE DATABASE $name");
@@ -817,7 +742,6 @@ EOF;
    */
   public function getSizeInfo($database)
   {
-
     $sql = <<< EOF
       SELECT
     DB_NAME(db.database_id) DatabaseName,
@@ -833,7 +757,7 @@ FROM sys.databases db
     WHERE DB_NAME(db.database_id) = :database
 EOF;
     // Database is defaulted from active connection.
-    $result = NULL;
+    $result = null;
     try {
       $result = $this->cnn->query_execute($sql, array(':database' => $database))->fetchObject();
     } catch (\Exception $e) {
@@ -859,7 +783,6 @@ EOF;
     $result->TableCount = $this->cnn->query_execute($sql)->fetchField();
 
     return $result;
-
   }
 
   /**
@@ -907,7 +830,7 @@ EOF;
    *
    * @return string
    */
-  public function getCollation($database, $schema, $table = NULL, $column = NULL)
+  public function getCollation($database, $schema, $table = null, $column = null)
   {
     // No table or column provided, then get info about
     // database (if exists) or server defaul collation.

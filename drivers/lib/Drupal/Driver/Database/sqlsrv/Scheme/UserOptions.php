@@ -15,16 +15,15 @@ class UserOptions extends SettingsManager
    *
    * @return UserOptions
    */
-  public static function Get(Connection $connection)
-  {
+    public static function Get(Connection $connection)
+    {
+        $data = new UserOptions();
 
-    $data = new UserOptions();
+        $result = [];
 
-    $result = [];
+        switch ($connection->Scheme()->EngineVersion()->Edition()) {
 
-    switch ($connection->Scheme()->EngineVersion()->Edition()) {
-
-      case 'SQL Azure';
+      case 'SQL Azure':
 
         $result['textsize'] = $connection->query_execute("SELECT @@TEXTSIZE AS [textsize]")->fetchColumn();
         $result['language'] = $connection->query_execute("SELECT @@LANGUAGE AS [language]")->fetchColumn();
@@ -62,92 +61,91 @@ EOT;
         break;
     }
 
-    // These are common to both MSSQL and Azure
-    $data->TextSize($result['textsize']);
-    $data->Language($result['language']);
-    $data->DateFormat($result['dateformat']);
-    $data->DateFirst($result['datefirst']);
-    $data->LockTimeout($result['lock_timeout']);
-    $data->IsolationLevel($result['isolation level']);
+        // These are common to both MSSQL and Azure
+        $data->TextSize($result['textsize']);
+        $data->Language($result['language']);
+        $data->DateFormat($result['dateformat']);
+        $data->DateFirst($result['datefirst']);
+        $data->LockTimeout($result['lock_timeout']);
+        $data->IsolationLevel($result['isolation level']);
 
-    return $data;
-  }
+        return $data;
+    }
 
-  /**
-   * @return string
-   */
-  public function TextSize()
-  {
-    return parent::CallMethod(__FUNCTION__, array(), func_get_args());
-  }
+    /**
+     * @return string
+     */
+    public function TextSize()
+    {
+        return parent::CallMethod(__FUNCTION__, array(), func_get_args());
+    }
 
-  /**
-   * @return string
-   */
-  public function Language()
-  {
-    return parent::CallMethod(__FUNCTION__, array(), func_get_args());
-  }
+    /**
+     * @return string
+     */
+    public function Language()
+    {
+        return parent::CallMethod(__FUNCTION__, array(), func_get_args());
+    }
 
-  /**
-   * @return string
-   */
-  public function DateFormat()
-  {
-    return parent::CallMethod(__FUNCTION__, array(), func_get_args());
-  }
+    /**
+     * @return string
+     */
+    public function DateFormat()
+    {
+        return parent::CallMethod(__FUNCTION__, array(), func_get_args());
+    }
 
-  /**
-   * @return string
-   */
-  public function DateFirst()
-  {
-    return parent::CallMethod(__FUNCTION__, array(), func_get_args(), NULL);
-  }
+    /**
+     * @return string
+     */
+    public function DateFirst()
+    {
+        return parent::CallMethod(__FUNCTION__, array(), func_get_args(), null);
+    }
 
-  public function LockTimeout()
-  {
-    return parent::CallMethod(__FUNCTION__, array(), func_get_args(), NULL);
-  }
+    public function LockTimeout()
+    {
+        return parent::CallMethod(__FUNCTION__, array(), func_get_args(), null);
+    }
 
-  public function QuotedIdentifier()
-  {
-    return parent::CallMethod(__FUNCTION__, array(), func_get_args(), NULL);
-  }
+    public function QuotedIdentifier()
+    {
+        return parent::CallMethod(__FUNCTION__, array(), func_get_args(), null);
+    }
 
-  public function Arithabort()
-  {
-    return parent::CallMethod(__FUNCTION__, array(), func_get_args(), NULL);
-  }
+    public function Arithabort()
+    {
+        return parent::CallMethod(__FUNCTION__, array(), func_get_args(), null);
+    }
 
-  public function AnsiNullDefaultOn()
-  {
-    return parent::CallMethod(__FUNCTION__, array(), func_get_args(), NULL);
-  }
+    public function AnsiNullDefaultOn()
+    {
+        return parent::CallMethod(__FUNCTION__, array(), func_get_args(), null);
+    }
 
-  public function AnsiWarnings()
-  {
-    return parent::CallMethod(__FUNCTION__, array(), func_get_args(), NULL);
-  }
+    public function AnsiWarnings()
+    {
+        return parent::CallMethod(__FUNCTION__, array(), func_get_args(), null);
+    }
 
-  public function AnsiPadding()
-  {
-    return parent::CallMethod(__FUNCTION__, array(), func_get_args(), NULL);
-  }
+    public function AnsiPadding()
+    {
+        return parent::CallMethod(__FUNCTION__, array(), func_get_args(), null);
+    }
 
-  public function AnsiNulls()
-  {
-    return parent::CallMethod(__FUNCTION__, array(), func_get_args(), NULL);
-  }
+    public function AnsiNulls()
+    {
+        return parent::CallMethod(__FUNCTION__, array(), func_get_args(), null);
+    }
 
-  public function ConcatNullYieldsNull()
-  {
-    return parent::CallMethod(__FUNCTION__, array(), func_get_args(), NULL);
-  }
+    public function ConcatNullYieldsNull()
+    {
+        return parent::CallMethod(__FUNCTION__, array(), func_get_args(), null);
+    }
 
-  public function IsolationLevel()
-  {
-    return parent::CallMethod(__FUNCTION__, array(), func_get_args(), NULL);
-  }
-
+    public function IsolationLevel()
+    {
+        return parent::CallMethod(__FUNCTION__, array(), func_get_args(), null);
+    }
 }

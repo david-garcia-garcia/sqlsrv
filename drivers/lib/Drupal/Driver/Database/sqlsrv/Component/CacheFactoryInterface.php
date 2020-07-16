@@ -2,7 +2,8 @@
 
 namespace Drupal\Driver\Database\sqlsrv\Component;
 
-interface CacheFactoryInterface {
+interface CacheFactoryInterface
+{
 
   /**
    * Get a cache backend for a specific binary.
@@ -11,6 +12,5 @@ interface CacheFactoryInterface {
    *
    * @return CacheInterface
    */
-  function get($bin);
-
+    public function get($bin);
 }

@@ -4,9 +4,11 @@
  * Contains \Drupal\Core\Database\Statement.
  */
 namespace Drupal\Driver\Database\sqlsrv;
+
 use \Drupal\Core\Database\StatementInterface;
 use \Drupal\Core\Database\RowCountException;
 use mssql\Statement;
+
 /**
  * Default implementation of StatementInterface.
  *
@@ -18,126 +20,134 @@ use mssql\Statement;
  *
  * @see http://php.net/pdostatement
  */
-class StatementBase extends Statement implements StatementInterface {
-  /**
-   * Reference to the database connection object for this statement.
-   *
-   * The name $dbh is inherited from \PDOStatement.
-   *
-   * @var \Drupal\Core\Database\Connection
-   */
-  public $dbh;
-  /**
-   * Is rowCount() execution allowed.
-   *
-   * @var bool
-   */
-  public $allowRowCount = FALSE;
-  protected function __construct(Connection $dbh) {
-    $this->dbh = $dbh;
-    $this->setFetchMode(\PDO::FETCH_OBJ);
-  }
-  /**
-   * {@inheritdoc}
-   */
-  public function execute($args = [], $options = []) {
-    if (isset($options['fetch'])) {
-      if (is_string($options['fetch'])) {
-        // \PDO::FETCH_PROPS_LATE tells __construct() to run before properties
-        // are added to the object.
-        $this->setFetchMode(\PDO::FETCH_CLASS | \PDO::FETCH_PROPS_LATE, $options['fetch']);
-      }
-      else {
-        $this->setFetchMode($options['fetch']);
-      }
+class StatementBase extends Statement implements StatementInterface
+{
+    /**
+     * Reference to the database connection object for this statement.
+     *
+     * The name $dbh is inherited from \PDOStatement.
+     *
+     * @var \Drupal\Core\Database\Connection
+     */
+    public $dbh;
+    /**
+     * Is rowCount() execution allowed.
+     *
+     * @var bool
+     */
+    public $allowRowCount = false;
+    protected function __construct(Connection $dbh)
+    {
+        $this->dbh = $dbh;
+        $this->setFetchMode(\PDO::FETCH_OBJ);
     }
-    $logger = $this->dbh->getLogger();
-    if (!empty($logger)) {
-      $query_start = microtime(TRUE);
+    /**
+     * {@inheritdoc}
+     */
+    public function execute($args = [], $options = [])
+    {
+        if (isset($options['fetch'])) {
+            if (is_string($options['fetch'])) {
+                // \PDO::FETCH_PROPS_LATE tells __construct() to run before properties
+                // are added to the object.
+                $this->setFetchMode(\PDO::FETCH_CLASS | \PDO::FETCH_PROPS_LATE, $options['fetch']);
+            } else {
+                $this->setFetchMode($options['fetch']);
+            }
+        }
+        $logger = $this->dbh->getLogger();
+        if (!empty($logger)) {
+            $query_start = microtime(true);
+        }
+        $return = parent::execute($args);
+        if (!empty($logger)) {
+            $query_end = microtime(true);
+            $logger->log($this, $args, $query_end - $query_start);
+        }
+        return $return;
     }
-    $return = parent::execute($args);
-    if (!empty($logger)) {
-      $query_end = microtime(TRUE);
-      $logger->log($this, $args, $query_end - $query_start);
+    /**
+     * {@inheritdoc}
+     */
+    public function getQueryString()
+    {
+        return $this->queryString;
     }
-    return $return;
-  }
-  /**
-   * {@inheritdoc}
-   */
-  public function getQueryString() {
-    return $this->queryString;
-  }
-  /**
-   * {@inheritdoc}
-   */
-  public function fetchCol($index = 0) {
-    return $this->fetchAll(\PDO::FETCH_COLUMN, $index);
-  }
-  /**
-   * {@inheritdoc}
-   */
-  public function fetchAllAssoc($key, $fetch = NULL) {
-    $return = [];
-    if (isset($fetch)) {
-      if (is_string($fetch)) {
-        $this->setFetchMode(\PDO::FETCH_CLASS, $fetch);
-      }
-      else {
-        $this->setFetchMode($fetch);
-      }
+    /**
+     * {@inheritdoc}
+     */
+    public function fetchCol($index = 0)
+    {
+        return $this->fetchAll(\PDO::FETCH_COLUMN, $index);
     }
-    foreach ($this as $record) {
-      $record_key = is_object($record) ? $record->$key : $record[$key];
-      $return[$record_key] = $record;
+    /**
+     * {@inheritdoc}
+     */
+    public function fetchAllAssoc($key, $fetch = null)
+    {
+        $return = [];
+        if (isset($fetch)) {
+            if (is_string($fetch)) {
+                $this->setFetchMode(\PDO::FETCH_CLASS, $fetch);
+            } else {
+                $this->setFetchMode($fetch);
+            }
+        }
+        foreach ($this as $record) {
+            $record_key = is_object($record) ? $record->$key : $record[$key];
+            $return[$record_key] = $record;
+        }
+        return $return;
     }
-    return $return;
-  }
-  /**
-   * {@inheritdoc}
-   */
-  public function fetchAllKeyed($key_index = 0, $value_index = 1) {
-    $return = [];
-    $this->setFetchMode(\PDO::FETCH_NUM);
-    foreach ($this as $record) {
-      $return[$record[$key_index]] = $record[$value_index];
+    /**
+     * {@inheritdoc}
+     */
+    public function fetchAllKeyed($key_index = 0, $value_index = 1)
+    {
+        $return = [];
+        $this->setFetchMode(\PDO::FETCH_NUM);
+        foreach ($this as $record) {
+            $return[$record[$key_index]] = $record[$value_index];
+        }
+        return $return;
     }
-    return $return;
-  }
-  /**
-   * {@inheritdoc}
-   */
-  public function fetchField($index = 0) {
-    // Call \PDOStatement::fetchColumn to fetch the field.
-    return $this->fetchColumn($index);
-  }
-  /**
-   * {@inheritdoc}
-   */
-  public function fetchAssoc() {
-    // Call \PDOStatement::fetch to fetch the row.
-    return $this->fetch(\PDO::FETCH_ASSOC);
-  }
-  /**
-   * {@inheritdoc}
-   */
-  public function rowCount() {
-    // SELECT query should not use the method.
-    if ($this->allowRowCount) {
-      return parent::rowCount();
+    /**
+     * {@inheritdoc}
+     */
+    public function fetchField($index = 0)
+    {
+        // Call \PDOStatement::fetchColumn to fetch the field.
+        return $this->fetchColumn($index);
     }
-    else {
-      throw new RowCountException();
+    /**
+     * {@inheritdoc}
+     */
+    public function fetchAssoc()
+    {
+        // Call \PDOStatement::fetch to fetch the row.
+        return $this->fetch(\PDO::FETCH_ASSOC);
     }
-  }
-  /**
-   * {@inheritdoc}
-   */
-  public function setFetchMode($mode, $a1 = NULL, $a2 = []) {
-    // Call \PDOStatement::setFetchMode to set fetch mode.
-    // \PDOStatement is picky about the number of arguments in some cases so we
-    // need to be pass the exact number of arguments we where given.
-    switch (func_num_args()) {
+    /**
+     * {@inheritdoc}
+     */
+    public function rowCount()
+    {
+        // SELECT query should not use the method.
+        if ($this->allowRowCount) {
+            return parent::rowCount();
+        } else {
+            throw new RowCountException();
+        }
+    }
+    /**
+     * {@inheritdoc}
+     */
+    public function setFetchMode($mode, $a1 = null, $a2 = [])
+    {
+        // Call \PDOStatement::setFetchMode to set fetch mode.
+        // \PDOStatement is picky about the number of arguments in some cases so we
+        // need to be pass the exact number of arguments we where given.
+        switch (func_num_args()) {
       case 1:
         return parent::setFetchMode($mode);
       case 2:
@@ -146,15 +156,16 @@ class StatementBase extends Statement implements StatementInterface {
       default:
         return parent::setFetchMode($mode, $a1, $a2);
     }
-  }
-  /**
-   * {@inheritdoc}
-   */
-  public function fetchAll($mode = NULL, $column_index = NULL, $constructor_arguments = NULL) {
-    // Call \PDOStatement::fetchAll to fetch all rows.
-    // \PDOStatement is picky about the number of arguments in some cases so we
-    // need to be pass the exact number of arguments we where given.
-    switch (func_num_args()) {
+    }
+    /**
+     * {@inheritdoc}
+     */
+    public function fetchAll($mode = null, $column_index = null, $constructor_arguments = null)
+    {
+        // Call \PDOStatement::fetchAll to fetch all rows.
+        // \PDOStatement is picky about the number of arguments in some cases so we
+        // need to be pass the exact number of arguments we where given.
+        switch (func_num_args()) {
       case 0:
         return parent::fetchAll();
       case 1:
@@ -165,5 +176,5 @@ class StatementBase extends Statement implements StatementInterface {
       default:
         return parent::fetchAll($mode, $column_index, $constructor_arguments);
     }
-  }
+    }
 }

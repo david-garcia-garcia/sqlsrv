@@ -2,7 +2,8 @@
 
 namespace Drupal\Driver\Database\sqlsrv\Component;
 
-interface CacheInterface {
+interface CacheInterface
+{
 
   /**
    * Set a cache item.
@@ -10,20 +11,19 @@ interface CacheInterface {
    * @param string $cid
    * @param mixed $data
    */
-  function Set($cid, $data);
+    public function Set($cid, $data);
 
-  /**
-   * Get a cache item.
-   *
-   * @param mixed $cid
-   */
-  function Get($cid);
+    /**
+     * Get a cache item.
+     *
+     * @param mixed $cid
+     */
+    public function Get($cid);
 
-  /**
-   * Clear a cache item.
-   *
-   * @param string $cid
-   */
-  function Clear($cid);
-
+    /**
+     * Clear a cache item.
+     *
+     * @param string $cid
+     */
+    public function Clear($cid);
 }

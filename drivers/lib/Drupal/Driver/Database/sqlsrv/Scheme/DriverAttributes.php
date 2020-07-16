@@ -9,35 +9,39 @@ use Drupal\Driver\Database\sqlsrv\PDO\Connection;
  *
  * https://msdn.microsoft.com/en-us/library/ff628181(v=sql.105).aspx
  */
-class DriverAttributes {
+class DriverAttributes
+{
 
   /** @var Connection */
-  protected $connection;
+    protected $connection;
 
-  /**
-   * Flattened array of attributes.
-   *
-   * @var string[]
-   */
-  protected $attributes;
+    /**
+     * Flattened array of attributes.
+     *
+     * @var string[]
+     */
+    protected $attributes;
 
-  public function __construct(Connection $cnn){
-    $this->connection = $cnn;
-    $this->intiailize();
-  }
+    public function __construct(Connection $cnn)
+    {
+        $this->connection = $cnn;
+        $this->intiailize();
+    }
 
-  public function getAll() {
-    return array_combine(array_keys($this->attributes), array_column($this->attributes, 'pretty'));
-  }
+    public function getAll()
+    {
+        return array_combine(array_keys($this->attributes), array_column($this->attributes, 'pretty'));
+    }
 
-  /**
-   * Gets all available attributes as a flattened
-   * key-value array.
-   */
-  private function intiailize() {
+    /**
+     * Gets all available attributes as a flattened
+     * key-value array.
+     */
+    private function intiailize()
+    {
 
     // These are the native attributes...
-    $atts = [
+        $atts = [
       'ATTR_ORACLE_NULLS' => ['code' => \PDO::ATTR_ORACLE_NULLS],
       'ATTR_CASE' => ['code' => \PDO::ATTR_CASE],
       'ATTR_CLIENT_VERSION' => ['code' => \PDO::ATTR_CLIENT_VERSION],
@@ -51,25 +55,25 @@ class DriverAttributes {
       'ATTR_STATEMENT_CLASS' => ['code' => \PDO::ATTR_STATEMENT_CLASS]
     ];
 
-    $result = [];
+        $result = [];
 
-    // Flatten the array....
-    foreach ($atts as $name => $spec) {
-      $value = $this->connection->getAttribute($spec['code']);
-      if (!is_array($value)) {
-        $value = ['' => $value];
-      }
-      foreach ($value as $key => $v) {
-        if (!is_scalar($v)) {
-          continue;
+        // Flatten the array....
+        foreach ($atts as $name => $spec) {
+            $value = $this->connection->getAttribute($spec['code']);
+            if (!is_array($value)) {
+                $value = ['' => $value];
+            }
+            foreach ($value as $key => $v) {
+                if (!is_scalar($v)) {
+                    continue;
+                }
+                $n = $key ? ($name . ".$key") : $name;
+                $result[$n] =  ['value' => $v, 'pretty' => $v];
+            }
         }
-        $n = $key ? ($name . ".$key") : $name;
-        $result[$n] =  ['value' => $v, 'pretty' => $v];
-      }
-    }
 
-    // Theses are the expanded ones...
-    $prettify = [
+        // Theses are the expanded ones...
+        $prettify = [
       'ATTR_CASE' => ['prettify' => [$this, 'pdoFriendlyNameCase']],
       'ATTR_ERRMODE' => ['prettify' => [$this, 'pdoFriendlyNameError']],
       'SQLSRV_ATTR_ENCODING' => ['prettify' => [$this, 'pdoFriendlyNameEncoding']],
@@ -82,16 +86,17 @@ class DriverAttributes {
 
     ];
 
-    foreach ($prettify as $key => $spec) {
-      $result[$key]['pretty'] = call_user_func($spec['prettify'], $result[$key]['value']);
+        foreach ($prettify as $key => $spec) {
+            $result[$key]['pretty'] = call_user_func($spec['prettify'], $result[$key]['value']);
+        }
+
+
+        $this->attributes = $result;
     }
 
-
-    $this->attributes = $result;
-  }
-
-  public function pdoFriendlyNameCase($const) {
-    switch ($const) {
+    public function pdoFriendlyNameCase($const)
+    {
+        switch ($const) {
       case \PDO::CASE_LOWER:
         return 'PDO::CASE_LOWER';
       case \PDO::CASE_NATURAL:
@@ -101,10 +106,11 @@ class DriverAttributes {
       default:
         return $const;
     }
-  }
+    }
 
-  public function pdoFriendlyNameError($const) {
-    switch ($const) {
+    public function pdoFriendlyNameError($const)
+    {
+        switch ($const) {
       case \PDO::ERRMODE_SILENT:
         return 'PDO::ERRMODE_SILENT';
       case \PDO::ERRMODE_WARNING:
@@ -114,10 +120,11 @@ class DriverAttributes {
       default:
         return $const;
     }
-  }
+    }
 
-  public function pdoFriendlyNameEncoding($const) {
-    switch ($const) {
+    public function pdoFriendlyNameEncoding($const)
+    {
+        switch ($const) {
       case \PDO::SQLSRV_ENCODING_UTF8:
         return 'PDO::SQLSRV_ENCODING_UTF8';
       case \PDO::SQLSRV_ENCODING_SYSTEM:
@@ -125,14 +132,15 @@ class DriverAttributes {
       default:
         return $const;
     }
-  }
+    }
 
-  public function pdoFriendlyNameBoolean($const) {
-    return $const ? 'yes' : 'No';
-  }
+    public function pdoFriendlyNameBoolean($const)
+    {
+        return $const ? 'yes' : 'No';
+    }
 
-  public function pdoFriendlySizeKb($const) {
-    return format_size($const * 1024);
-  }
-
+    public function pdoFriendlySizeKb($const)
+    {
+        return format_size($const * 1024);
+    }
 }
