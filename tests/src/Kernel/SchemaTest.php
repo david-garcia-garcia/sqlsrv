@@ -11,7 +11,8 @@ use Drupal\KernelTests\Core\Database\DatabaseTestBase;
  *
  * @group Database
  */
-class SchemaTest extends DatabaseTestBase {
+class SchemaTest extends DatabaseTestBase
+{
 
   /**
    * The table definition.
@@ -30,7 +31,8 @@ class SchemaTest extends DatabaseTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp()
+  {
     parent::setUp();
     /** @var \Drupal\Driver\Database\sqlsrv\Schema $schema */
     $schema = $this->connection->schema();
@@ -79,7 +81,8 @@ class SchemaTest extends DatabaseTestBase {
   /**
    * Verify that comments are dropped when the table is dropped.
    */
-  public function testDropTableComment() {
+  public function testDropTableComment()
+  {
     // Drop table and ensure comment does not exist.
     $this->schema->dropTable('test');
     $this->assertEmpty($this->schema->getComment('test'));
@@ -94,7 +97,8 @@ class SchemaTest extends DatabaseTestBase {
   /**
    * Verify that comments are dropped when the field is dropped.
    */
-  public function testDropFieldComment() {
+  public function testDropFieldComment()
+  {
 
     // Drop field and ensure comment does not exist.
     $this->schema->dropField('test', 'name');
@@ -113,7 +117,8 @@ class SchemaTest extends DatabaseTestBase {
   /**
    * Verify that comments are changed when the field is altered.
    */
-  public function testChangeFieldComment() {
+  public function testChangeFieldComment()
+  {
 
     // Add field with different description.
     $spec = $this->table['fields']['name'];
@@ -128,7 +133,8 @@ class SchemaTest extends DatabaseTestBase {
   /**
    * Exception thrown when field does not exist.
    */
-  public function testAddDefaultException() {
+  public function testAddDefaultException()
+  {
     $this->expectException(SchemaObjectDoesNotExistException::class);
     $this->schema->fieldSetDefault('test', 'noname', 'Elvis');
   }
@@ -136,7 +142,8 @@ class SchemaTest extends DatabaseTestBase {
   /**
    * Exception thrown when field does not exist.
    */
-  public function testAddNotDefaultException() {
+  public function testAddNotDefaultException()
+  {
     $this->expectException(SchemaObjectDoesNotExistException::class);
     $this->schema->fieldSetNoDefault('test', 'noname');
   }
@@ -144,7 +151,8 @@ class SchemaTest extends DatabaseTestBase {
   /**
    * Exception thrown when table exists.
    */
-  public function testCreateTableExists() {
+  public function testCreateTableExists()
+  {
     $this->expectException(SchemaObjectExistsException::class);
     $this->schema->createTable('test', $this->table);
   }
@@ -156,7 +164,8 @@ class SchemaTest extends DatabaseTestBase {
    * is returned if the test server is configured with a different
    * value for the schema?
    */
-  public function testGetDefaultSchemaNoDefault() {
+  public function testGetDefaultSchemaNoDefault()
+  {
     $schema = new \ReflectionClass('\Drupal\Driver\Database\sqlsrv\Schema');
     $property = $schema->getProperty("defaultSchema");
     $property->setAccessible(TRUE);
@@ -169,7 +178,8 @@ class SchemaTest extends DatabaseTestBase {
   /**
    * Exception thrown when table does not exist.
    */
-  public function testRenameTableAlreadyExistsException() {
+  public function testRenameTableAlreadyExistsException()
+  {
     $this->expectException(SchemaObjectDoesNotExistException::class);
     $this->schema->renameTable('tabledoesnotexist', 'test_new');
   }
@@ -177,7 +187,8 @@ class SchemaTest extends DatabaseTestBase {
   /**
    * Exception thrown when table already exists.
    */
-  public function testRenameTableDoesNotExistException() {
+  public function testRenameTableDoesNotExistException()
+  {
     $this->expectException(SchemaObjectExistsException::class);
     $this->schema->renameTable('test_people', 'test');
   }
@@ -185,7 +196,8 @@ class SchemaTest extends DatabaseTestBase {
   /**
    * Exception thrown when field already exists.
    */
-  public function testNewFieldExistsException() {
+  public function testNewFieldExistsException()
+  {
     $this->expectException(SchemaObjectExistsException::class);
     $this->schema->addField('test', 'name', $this->table['fields']['name']);
   }
@@ -193,7 +205,8 @@ class SchemaTest extends DatabaseTestBase {
   /**
    * Exception thrown when table does not exist.
    */
-  public function testPrimaryKeyTableDoesNotExistException() {
+  public function testPrimaryKeyTableDoesNotExistException()
+  {
     $this->expectException(SchemaObjectDoesNotExistException::class);
     $this->schema->addPrimaryKey('test_new', 'name');
   }
@@ -201,7 +214,8 @@ class SchemaTest extends DatabaseTestBase {
   /**
    * Exception thrown when primary key already exists.
    */
-  public function testPrimaryKeyExistsException() {
+  public function testPrimaryKeyExistsException()
+  {
     $this->expectException(SchemaObjectExistsException::class);
     $this->schema->addPrimaryKey('test', 'name');
   }
@@ -211,7 +225,8 @@ class SchemaTest extends DatabaseTestBase {
    *
    * Verify that the function parameters after 'name' are correct.
    */
-  public function testUniqueKeyTableDoesNotExistException() {
+  public function testUniqueKeyTableDoesNotExistException()
+  {
     $this->expectException(SchemaObjectDoesNotExistException::class);
     $this->schema->addUniqueKey('test_new', 'name', $this->table['fields']);
   }
@@ -221,7 +236,8 @@ class SchemaTest extends DatabaseTestBase {
    *
    * Verify that the function parameters after 'name' are correct.
    */
-  public function testUniqueKeyExistsException() {
+  public function testUniqueKeyExistsException()
+  {
     $this->expectException(SchemaObjectExistsException::class);
     $this->schema->addUniqueKey('test', 'name', $this->table['fields']);
   }
@@ -231,7 +247,8 @@ class SchemaTest extends DatabaseTestBase {
    *
    * Verify that the function parameters after 'name' are correct.
    */
-  public function testIndexTableDoesNotExistException() {
+  public function testIndexTableDoesNotExistException()
+  {
     $this->expectException(SchemaObjectDoesNotExistException::class);
     $this->schema->addIndex('test_new', 'name', $this->table['fields'], $this->table);
   }
@@ -241,7 +258,8 @@ class SchemaTest extends DatabaseTestBase {
    *
    * Verify that the function parameters after 'age' are correct.
    */
-  public function testIndexExistsException() {
+  public function testIndexExistsException()
+  {
     $this->expectException(SchemaObjectExistsException::class);
     $this->schema->addIndex('test', 'ages', $this->table['fields'], $this->table);
   }
@@ -249,7 +267,8 @@ class SchemaTest extends DatabaseTestBase {
   /**
    * Exception thrown when table does not exist.
    */
-  public function testIntroscpectSchemaException() {
+  public function testIntroscpectSchemaException()
+  {
     $this->expectException(SchemaObjectDoesNotExistException::class);
     $this->schema->getTableIntrospection('test_new');
   }
@@ -257,7 +276,8 @@ class SchemaTest extends DatabaseTestBase {
   /**
    * Exception thrown when field does not exist.
    */
-  public function testFieldDoesNotExistException() {
+  public function testFieldDoesNotExistException()
+  {
     $this->expectException(SchemaObjectDoesNotExistException::class);
     $this->schema->changeField('test', 'age1', 'age2', $this->table['fields']['age']);
   }
@@ -265,9 +285,9 @@ class SchemaTest extends DatabaseTestBase {
   /**
    * Exception thrown when field already exists.
    */
-  public function testFieldExistsException() {
+  public function testFieldExistsException()
+  {
     $this->expectException(SchemaObjectExistsException::class);
     $this->schema->changeField('test', 'age', 'name', $this->table['fields']['age']);
   }
-
 }
