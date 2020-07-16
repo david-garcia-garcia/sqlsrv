@@ -4,6 +4,7 @@ namespace Drupal\Tests\sqlsrv\Kernel;
 
 use Drupal\Core\Database\DatabaseException;
 use Drupal\Core\Database\IntegrityConstraintViolationException;
+use Drupal\Driver\Database\sqlsrv\PDO\DoomedTransactionException;
 use Drupal\KernelTests\Core\Database\DatabaseTestBase;
 
 /**
@@ -304,5 +305,279 @@ class SchemaTestExtended extends DatabaseTestBase
     ));
 
     $this->assertTrue($this->connection->schema()->indexExists('test_table', 'id_test'), t('The index has been recreated by db_change_field().'));
+  }
+
+  /**
+   * Performs a count query over the predefined result set
+   * and verifies that the number of results matches.
+   *
+   * @param mixed[] $results
+   *
+   * @param string $type
+   *   Can either be:
+   *     "CS_AS" -> Case sensitive / Accent sensitive
+   *     "CI_AI" -> Case insensitive / Accent insesitive
+   *     "CI_AS" -> Case insensitive / Accent sensitive
+   */
+  private function AddChangeWithBinarySearchHelper(array $results, string $type, string $fieldtype)
+  {
+    foreach ($results as $search => $result) {
+      // By default, datase collation
+      // should be case insensitive returning both rows.
+      $count = $this->connection->query('SELECT COUNT(*) FROM {test_table_binary} WHERE name = :name', [':name' => $search])->fetchField();
+      $this->assertEqual($count, $result[$type], "Returned the correct number of total rows for a {$type} search on fieldtype {$fieldtype}");
+    }
+  }
+
+  /**
+   * Test db_add_field() and db_change_field() with binary spec.
+   */
+  /*public function testAddChangeWithBinary()
+  {
+    $table_spec = array(
+      'fields' => array(
+        'id' => array(
+          'type' => 'serial',
+          'not null' => TRUE,
+        ),
+        'name' => array(
+          'type' => 'varchar',
+          'length' => 255,
+          'binary' => false
+        ),
+      ),
+      'primary key' => array('id'),
+    );
+
+    $schema = $this->connection->schema();
+
+    $schema->createTable('test_table_binary', $table_spec);
+
+    $samples = ["Sandra", "sandra", "sÁndra"];
+
+    foreach ($samples as $sample) {
+      $this->connection->insert('test_table_binary')->fields(['name' => $sample])->execute();
+    }
+
+    // Strings to be tested.
+    $results = [
+      "SaNDRa" => ["CS_AS" => 0, "CI_AI" => 3, "CI_AS" => 2],
+      "SÁNdRA" => ["CS_AS" => 0, "CI_AI" => 3, "CI_AS" => 1],
+      "SANDRA" => ["CS_AS" => 0, "CI_AI" => 3, "CI_AS" => 2],
+      "sandra" => ["CS_AS" => 1, "CI_AI" => 3, "CI_AS" => 2],
+      "Sandra" => ["CS_AS" => 1, "CI_AI" => 3, "CI_AS" => 2],
+      "sÁndra" => ["CS_AS" => 1, "CI_AI" => 3, "CI_AS" => 1],
+      "pedro" => ["CS_AS" => 0, "CI_AI" => 0, "CI_AS" => 0],
+    ];
+
+    // Test case insensitive.
+    $this->AddChangeWithBinarySearchHelper($results, "CI_AI", "varchar");
+
+    // Now let's change the field
+    // to case sensistive / accent sensitive.
+    $schema->changeField('test_table_binary', 'name', 'name', [
+      'type' => 'varchar',
+      'length' => 255,
+      'binary' => true
+    ]);
+
+    // Test case sensitive.
+    $this->AddChangeWithBinarySearchHelper($results, "CS_AS", "varchar:binary");
+
+    // Let's make this even harder, convert to BLOB and back to text.
+    // Blob is binary so works like CS/AS
+    $schema->changeField('test_table_binary', 'name', 'name', [
+      'type' => 'blob',
+    ]);
+
+    // Test case sensitive. Varbinary behaves as Case Insensitive / Accent Sensitive.
+    // NEVER store text as blob, it behaves as CI_AI!!!
+    $this->AddChangeWithBinarySearchHelper($results, "CI_AI", "blob");
+
+    // Back to Case Insensitive / Accent Insensitive
+    $schema->changeField('test_table_binary', 'name', 'name', [
+      'type' => 'varchar',
+      'length' => 255,
+    ]);
+
+    // Test case insensitive.
+    $this->AddChangeWithBinarySearchHelper($results, "CI_AI", "varchar");
+
+    // Test varchar_ascii support
+    $schema->changeField('test_table_binary', 'name', 'name', [
+      'type' => 'varchar_ascii'
+    ]);
+
+    // Test case insensitive.
+    $this->AddChangeWithBinarySearchHelper($results, "CS_AS", "varchar_ascii");
+  }*/
+
+  /**
+   * Test numeric field precision.
+   */
+  public function testNumericFieldPrecision()
+  {
+    $table_spec = array(
+      'fields' => array(
+        'id' => array(
+          'type' => 'serial',
+          'not null' => TRUE,
+        ),
+        'name' => array(
+          'type' => 'numeric',
+          'precision' => 400,
+          'scale' => 2
+        ),
+      ),
+      'primary key' => array('id'),
+    );
+
+    $schema = $this->connection->schema();
+
+    $success = FALSE;
+    try {
+      $schema->createTable('test_table_binary', $table_spec);
+      $success = TRUE;
+    } catch (Exception $error) {
+      $success = FALSE;
+    }
+
+    $this->assertTrue($success, t('Able to create a numeric field with an out of bounds precision.'));
+  }
+
+  /**
+   * Tests that inserting non UTF8 strings
+   * on a table that does not exists triggers
+   * the proper error and not a string conversion
+   * error.
+   */
+  public function testInsertBadCharsIntoNonExistingTable()
+  {
+
+    $schema = $this->connection->schema();
+
+    try {
+      $query = $this->connection->insert('GHOST_TABLE');
+      $query->fields(array('FIELD' => gzcompress('compresing this string into zip!')));
+      $query->execute();
+    } catch (\Exception $e) {
+      if (!($e instanceof \Drupal\Core\Database\SchemaObjectDoesNotExistException)) {
+        $this->fail('Inserting into a non existent table does not trigger the right type of Exception.');
+      } else {
+        $this->pass('Proper exception type thrown.');
+      }
+    }
+
+    try {
+      $query = $this->connection->update('GHOST_TABLE');
+      $query->fields(array('FIELD' => gzcompress('compresing this string into zip!')));
+      $query->execute();
+    } catch (\Exception $e) {
+      if (!($e instanceof \Drupal\Core\Database\SchemaObjectDoesNotExistException)) {
+        $this->fail('Updating into a non existent table does not trigger the right type of Exception.');
+      } else {
+        $this->pass('Proper exception type thrown.');
+      }
+    }
+  }
+
+  /**
+   * @ee https://github.com/Azure/msphpsql/issues/50
+   *
+   * Some transactions will get DOOMED if an exception is thrown
+   * and the PDO driver will internally rollback and issue
+   * a new transaction. That is a BIG bug.
+   *
+   * One of the most usual cases is when trying to query
+   * with a string against an integer column.
+   *
+   */
+  public function testTransactionDoomed()
+  {
+
+    $table_spec = array(
+      'fields' => array(
+        'id' => array(
+          'type' => 'serial',
+          'not null' => TRUE,
+        ),
+        'name' => array(
+          'type' => 'varchar',
+          'length' => 255,
+          'binary' => false
+        ),
+      ),
+      'primary key' => array('id'),
+    );
+
+    $schema = $this->connection->schema();
+
+    $schema->createTable('test_table', $table_spec);
+
+    // Let's do it!
+    $query = $this->connection->insert('test_table');
+    $query->fields(array('name' => 'JUAN'));
+    $id = $query->execute();
+
+    // Change the name
+    $transaction = $this->connection->startTransaction();
+
+    $this->connection->query('UPDATE {test_table} SET name = :p0 WHERE id = :p1', array(':p0' => 'DAVID', ':p1' => $id));
+
+    $name = $this->connection->query('SELECT TOP(1) NAME from {test_table}')->fetchField();
+    $this->assertEqual($name, 'DAVID');
+
+    // Let's throw an exception that DOES NOT doom the transaction
+    try {
+      $name = $this->connection->query('SELECT COUNT(*) FROM THIS_TABLE_DOES_NOT_EXIST')->fetchField();
+    } catch (\Exception $e) {
+
+    }
+
+    $name = $this->connection->query('SELECT TOP(1) NAME from {test_table}')->fetchField();
+    $this->assertEqual($name, 'DAVID');
+
+    // Lets doom this transaction.
+    try {
+      $this->connection->query('UPDATE {test_table} SET name = :p0 WHERE id = :p1', array(':p0' => 'DAVID', ':p1' => 'THIS IS NOT AND WILL NEVER BE A NUMBER'));
+    } catch (\Exception $e) {
+
+    }
+
+    // What should happen here is that
+    // any further attempt to do something inside the
+    // scope of this transaction MUST throw an exception.
+    $failed = FALSE;
+    try {
+      $name = $this->connection->query('SELECT TOP(1) NAME from {test_table}')->fetchField();
+      $this->assertEqual($name, 'DAVID');
+    } catch (\Exception $e) {
+      if (!($e instanceof DoomedTransactionException)) {
+        $this->fail('Wrong exception when testing doomed transactions.');
+      }
+      $failed = TRUE;
+    }
+
+    $this->assertTrue($failed, 'Operating on the database after the transaction is doomed throws an exception.');
+
+    // Trying to unset the transaction without an explicit rollback should trigger
+    // an exception.
+    $failed = FALSE;
+    try {
+      unset($transaction);
+    } catch (\Exception $e) {
+      if (!($e instanceof DoomedTransactionException)) {
+        $this->fail('Wrong exception when testing doomed transactions.');
+      }
+      $failed = TRUE;
+    }
+
+    $this->assertTrue($failed, 'Trying to commit a doomed transaction throws an Exception.');
+
+    //$query = db_select('test_table', 't');
+    //$query->addField('t', 'name');
+    //$name = $query->execute()->fetchField();
+    //$this->assertEqual($name, 'DAVID');
+    //unset($transaction);
   }
 }
