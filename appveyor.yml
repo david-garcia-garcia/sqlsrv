@@ -9,6 +9,19 @@ hosts:
 image:
   - Visual Studio 2019
 install:
+  - ps: |
+       echo "Running on cloud $Env:APPVEYOR_BUILD_WORKER_CLOUD";
+       echo "Running on image $Env:APPVEYOR_BUILD_WORKER_IMAGE";
+       $cpu = Get-WmiObject Win32_ComputerSystem | Select NumberOfProcessors, NumberOfLogicalProcessors, Name, Manufacturer, Model;
+       $clockSpeed = Get-WmiObject -Class Win32_Processor | Select CurrentClockSpeed;
+       $memoryGb = Get-CimInstance Win32_PhysicalMemory | Measure-Object -Property capacity -Sum | Foreach {"{0:N2}" -f ([math]::round(($_.Sum / 1GB),2))};
+       echo "NumberOfLogicalProcessors: $($cpu.NumberOfLogicalProcessors)";
+       echo "NumberOfProcessors: $($cpu.NumberOfProcessors)";
+       echo "System Memory: $memoryGb";
+       echo "CPU clock speed: $($clockSpeed.CurrentClockSpeed)Hz";
+       echo "Computer Name: $($cpu.Name)";
+       echo "Manufacturer: $($cpu.Manufacturer)";
+       echo "Model: $($cpu.Model)";
   - ps: $Env:APPVEYOR_REPO_COMMIT_MESSAGE_FULL = "$env:APPVEYOR_REPO_COMMIT_MESSAGE $env:APPVEYOR_REPO_COMMIT_MESSAGE_EXTENDED".TrimEnd();
   - ps: $Env:TestLogDir = "$Env:BuildDir\TestLogs";
   - ps: $Env:TestLogDirClone = "$Env:BuildDir\TestLogsClone";
