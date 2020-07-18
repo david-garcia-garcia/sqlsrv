@@ -14,12 +14,14 @@ use Drupal\KernelTests\Core\Database\DatabaseTestBase;
  *
  * @group Database
  */
-class SqlsrvTest extends DatabaseTestBase {
+class SqlsrvTest extends DatabaseTestBase
+{
 
   /**
    * Test the 2100 parameter limit per query.
    */
-  public function testParameterLimit() {
+  public function testParameterLimit()
+  {
     $values = [];
     for ($x = 0; $x < 2200; $x++) {
       $values[] = uniqid(strval($x), TRUE);
@@ -31,8 +33,7 @@ class SqlsrvTest extends DatabaseTestBase {
     // If > 2100 we can get SQL Exception! The driver must handle that.
     try {
       $result = $query->execute()->fetchField();
-    }
-    catch (\Exception $err) {
+    } catch (\Exception $err) {
     }
 
     $this->assertEqual($result, 0, 'Returned the correct number of total rows.');
@@ -46,7 +47,8 @@ class SqlsrvTest extends DatabaseTestBase {
    * and is present in some queries, even in core, which have not
    * gotten enough attention.
    */
-  public function testDuplicatePlaceholders() {
+  public function testDuplicatePlaceholders()
+  {
     $query = $this->connection->select('test_task', 't');
     $query->addExpression('COUNT(task)', 'num');
     $query->where('t.task IN (:data0, :data0)', [':data0' => 'sleep']);
@@ -54,8 +56,7 @@ class SqlsrvTest extends DatabaseTestBase {
     // If > 2100 we can get SQL Exception! The driver must handle that.
     try {
       $result = $query->execute()->fetchField();
-    }
-    catch (\Exception $err) {
+    } catch (\Exception $err) {
     }
 
     $this->assertEqual($result, 2, 'Returned the correct number of total rows.');
@@ -66,7 +67,8 @@ class SqlsrvTest extends DatabaseTestBase {
    *
    * @dataProvider dataProviderForTestTemporaryTables
    */
-  public function testTemporaryTables($temp_prefix, $leak_table) {
+  public function testTemporaryTables($temp_prefix, $leak_table)
+  {
     // Set the temp table prefix on the Connection.
     $reflectionClass = new \ReflectionClass(Connection::class);
     $reflectionProperty = $reflectionClass->getProperty('tempTablePrefix');
@@ -83,7 +85,7 @@ class SqlsrvTest extends DatabaseTestBase {
     $query = $this->connection->select('test_task', 't');
     $query->fields('t');
 
-    $table = $this->connection->queryTemporary((string) $query);
+    $table = $this->connection->queryTemporary((string)$query);
 
     // First assert that the table exists.
     $this->assertTRUE($this->connection->schema()->tableExists($table), 'The temporary table exists.');
@@ -138,7 +140,7 @@ class SqlsrvTest extends DatabaseTestBase {
     $this->assertNotEquals($connection_id2, $connection_id1, 'Connections 1 & 2 have different IDs.');
 
     // Create a temporary table in this connection.
-    $table = $second_connection->queryTemporary((string) $query);
+    $table = $second_connection->queryTemporary((string)$query);
     // Is the temp table visible on the originating connection?
     $this->assertTrue($second_connection->schema()->tableExists($table), 'Temporary table exists.');
 
@@ -167,7 +169,8 @@ class SqlsrvTest extends DatabaseTestBase {
   /**
    * Provides data for testTemporaryTable().
    */
-  public function dataProviderForTestTemporaryTables() {
+  public function dataProviderForTestTemporaryTables()
+  {
     return [
       'local' => ['#', FALSE],
       'global' => ['##', TRUE],
@@ -178,14 +181,17 @@ class SqlsrvTest extends DatabaseTestBase {
   /**
    * Test LIKE statement wildcards are properly escaped.
    */
-  public function testEscapeLike() {
+  public function testEscapeLike()
+  {
     // Test expected escaped characters.
     $string = 't[e%s]t_\\';
     $escaped_string = $this->connection->escapeLike($string);
-    $this->assertEqual($escaped_string, 't[e\%s]t\_\\\\', 'Properly escaped string with backslashes');
+    $this->assertEqual($escaped_string, 't[[]e[%]s[]]t[_]\\', 'Properly escaped string with backslashes');
+
+    // Test escpaed when in condition
     $query = $this->connection->select('test_task', 't');
     $condition = new Condition('AND');
-    $condition->condition('task', $escaped_string, 'LIKE');
+    $condition->condition('task', $string, 'LIKE');
     $condition->compile($this->connection, $query);
     $arguments = $condition->conditions();
     $argument = $arguments[0];

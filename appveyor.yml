@@ -110,62 +110,23 @@ test_script:
   - cmd: mkdir %TestLogDir%\testresults\
   - cmd: echo Tests not run because they need to be updated as they are using deprecated implementations
   - ps: |
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Unit\OrderByTest 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) OrderByTest test failed."
-      }
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Unit\SqlsrvConditionTest 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) SqlsrvConditionTest test failed."
-      }
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Unit\SqlsrvConnectionTest 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) SqlsrvConnectionTest test failed."
-      }
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\SchemaTest 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) SchemaTest test failed."
-      }
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\SchemaTestExtended 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) SchemaTestExtended test failed."
-      }
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\ConnectionTest 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) ConnectionTest test failed."
-      }
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\SelectTest 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) SelectTest test failed."
-      }
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\AliasTest 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) AliasTest test failed."
-      }
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\ConditionTest 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) ConditionTest test failed."
-      }
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\DeleteTruncateTest 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) DeleteTruncateTest test failed."
-      }
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\MergeTest 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) MergeTest test failed."
-      }
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\ParameterTest 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) ParameterTest test failed."
-      }
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\SqlsrvTest 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) SqlsrvTest test failed."
-      }
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\UpdateTest 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) UpdateTest test failed."
-      }
+      Start-Transcript "$Env:TestLogDir\tests.log"
+      $ErrorActionPreference = 'SilentlyContinue'
+      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Unit\OrderByTest
+      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Unit\SqlsrvConditionTest
+      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Unit\SqlsrvConnectionTest
+      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\SchemaTest
+      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\SchemaTestExtended
+      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\ConnectionTest
+      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\SelectTest
+      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\AliasTest
+      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\ConditionTest
+      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\DeleteTruncateTest
+      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\MergeTest
+      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\ParameterTest
+      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\SqlsrvTest
+      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\UpdateTest
+      Stop-Transcript
   # After tests, try istalling all core modules\contrib\sqlsrv  - cmd: drupal module:install simpletest
 on_finish:
   - ps: echo "on_finish start";

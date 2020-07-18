@@ -9,23 +9,28 @@ use Drupal\KernelTests\Core\Database\DatabaseTestBase;
  *
  * @group Database
  */
-class UpdateTest extends DatabaseTestBase {
+class UpdateTest extends DatabaseTestBase
+{
 
   /**
-   * Expect an exception when updating a primary key.
+   * Expect primary key update is ignored
    */
-  public function testPrimaryKeyUpdate() {
-    $this->expectException(\Exception::class);
+  public function testPrimaryKeyUpdate()
+  {
+    // To ease compatiblity with MySQL, where a statement with an identity column is being updated
+    // will not throw an exception, this will not throw an exception here too.
     $num_updated = $this->connection->update('test')
       ->fields(['id' => 42, 'name' => 'John'])
       ->condition('id', '1')
       ->execute();
+    $this->assertEqual($num_updated, 1, 'One row updated');
   }
 
   /**
    * Tests namespace of the condition object.
    */
-  public function testNamespaceConditionObject() {
+  public function testNamespaceConditionObject()
+  {
     $namespace = (new \ReflectionObject($this->connection))->getNamespaceName() . "\\Condition";
     $update = $this->connection->update('test');
 
