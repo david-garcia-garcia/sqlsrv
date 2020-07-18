@@ -108,7 +108,6 @@ build_script:
 test_script:
   - cmd: cd /d C:\projects\drupal-project
   - cmd: mkdir %TestLogDir%\testresults\
-  - cmd: echo Tests not run because they need to be updated as they are using deprecated implementations
   # Register the test watcher
   - ps: |
       $watcher = New-Object System.IO.FileSystemWatcher;
@@ -123,15 +122,17 @@ test_script:
         $wc = New-Object 'System.Net.WebClient'
         $wc.UploadFile("https://ci.appveyor.com/api/testresults/xunit/$($env:APPVEYOR_JOB_ID)", $path);
       }
+      Register-ObjectEvent $watcher 'Created' -Action $action
   - ps: |
       Start-Transcript "$Env:TestLogDir\tests.log"
       $ErrorActionPreference = 'SilentlyContinue'
-      php web/core/scripts/run-tests.sh --php php --url "http://sqlsrv.drupal.org/" --concurrency 8 --xml "$Env:TestLogDir\testresults\" sqlsrv 2>&1 > null
+      php web/core/scripts/run-tests.sh --php php --url "http://sqlsrv.drupal.org/" --concurrency 4 --xml "$Env:TestLogDir\testresults\" sqlsrv 2>&1 > null
+      php web/core/scripts/run-tests.sh --php php --url "http://sqlsrv.drupal.org/" --concurrency 4 --xml "$Env:TestLogDir\testresults\" Database 2>&1 > null
+      php web/core/scripts/run-tests.sh --php php --url "http://sqlsrv.drupal.org/" --concurrency 4 --xml "$Env:TestLogDir\testresults\" Entity 2>&1 > null
       Stop-Transcript
   # After tests, try istalling all core modules\contrib\sqlsrv  - cmd: drupal module:install simpletest
 on_finish:
   - ps: echo "on_finish start";
-  - ps: Stop-Transcript
   - cmd: echo Build Version %APPVEYOR_BUILD_VERSION%
   # Add the chocolatey logs
   - cmd: mkdir %TestLogDir%\ChocolateyLogs
