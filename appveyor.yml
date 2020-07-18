@@ -127,21 +127,23 @@ test_script:
       $watcher.IncludeSubdirectories = $true;
       $watcher.Path = "$Env:TestLogDir\testresults\";
       $watcher.EnableRaisingEvents = $true;
+      $Env:testCount = 0;
       $action =
       {
         $path = $event.SourceEventArgs.FullPath
         $changetype = $event.SourceEventArgs.ChangeType
-        Write-Host "$path was $changetype at $(get-date)"
+        ([int]$Env:testCount)++;
         $wc = New-Object 'System.Net.WebClient'
         $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", $path);
+        echo "Completed $Env:testCount tests";
       }
       Register-ObjectEvent $watcher 'Created' -Action $action
   - ps: |
       Start-Transcript "$Env:TestLogDir\tests.log"
       $ErrorActionPreference = 'SilentlyContinue'
-      php web/core/scripts/run-tests.sh --php php --non-html --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" sqlsrv 2>&1 > null
-      php web/core/scripts/run-tests.sh --php php --non-html --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" Database 2>&1 > null
-      php web/core/scripts/run-tests.sh --php php --non-html --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" Entity 2>&1 > null
+      php web/core/scripts/run-tests.sh --php php --url "http://sqlsrv.drupal.org/" --non-html --concurrency 4 --xml "$Env:TestLogDir\testresults\" sqlsrv 2>&1 > null
+      php web/core/scripts/run-tests.sh --php php --url "http://sqlsrv.drupal.org/" --non-html --concurrency 4 --xml "$Env:TestLogDir\testresults\" Database 2>&1 > null
+      php web/core/scripts/run-tests.sh --php php --url "http://sqlsrv.drupal.org/" --non-html --concurrency 4 --xml "$Env:TestLogDir\testresults\" Entity 2>&1 > null
       Stop-Transcript
   # After tests, try istalling all core modules\contrib\sqlsrv  - cmd: drupal module:install simpletest
 on_finish:
