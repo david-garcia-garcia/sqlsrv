@@ -9,7 +9,7 @@ use Drupal\KernelTests\Core\Database\DatabaseTestBase;
 /**
  * Tests table creation and modification via the schema API.
  *
- * @group Database
+ * @group sqlsrv
  */
 class SchemaTest extends DatabaseTestBase
 {

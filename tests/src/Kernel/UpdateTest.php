@@ -7,7 +7,7 @@ use Drupal\KernelTests\Core\Database\DatabaseTestBase;
 /**
  * Tests the update query builder.
  *
- * @group Database
+ * @group sqlsrv
  */
 class UpdateTest extends DatabaseTestBase
 {

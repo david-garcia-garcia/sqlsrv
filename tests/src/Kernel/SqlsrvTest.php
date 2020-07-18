@@ -12,7 +12,7 @@ use Drupal\KernelTests\Core\Database\DatabaseTestBase;
  *
  * These tests may not pass on other drivers.
  *
- * @group Database
+ * @group sqlsrv
  */
 class SqlsrvTest extends DatabaseTestBase
 {

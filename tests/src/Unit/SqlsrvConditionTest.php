@@ -13,7 +13,7 @@ use Prophecy\Argument;
  *
  * These tests are not expected to pass on other database drivers.
  *
- * @group Database
+ * @group sqlsrv
  */
 class SqlsrvConditionTest extends UnitTestCase {
 

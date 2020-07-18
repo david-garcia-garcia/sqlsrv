@@ -15,14 +15,16 @@ use Drupal\KernelTests\Core\Database\DatabaseTestBase;
  * TRUNCATE queries is not consistent across database engines. We only test
  * that a TRUNCATE query actually deletes all rows from the target table.
  *
- * @group Database
+ * @group sqlsrv
  */
-class DeleteTruncateTest extends DatabaseTestBase {
+class DeleteTruncateTest extends DatabaseTestBase
+{
 
   /**
    * Tests namespace of the condition object.
    */
-  public function testNamespaceConditionObject() {
+  public function testNamespaceConditionObject()
+  {
     $namespace = (new \ReflectionObject($this->connection))->getNamespaceName() . "\\Condition";
     $delete = $this->connection->delete('test');
 

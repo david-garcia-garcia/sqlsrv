@@ -7,7 +7,7 @@ use Drupal\KernelTests\Core\Database\DatabaseTestBase;
 /**
  * Test aliases within GROUP BY and ORDER BY.
  *
- * @group Database
+ * @group sqlsrv
  */
 class AliasTest extends DatabaseTestBase {
 

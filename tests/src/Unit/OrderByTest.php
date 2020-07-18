@@ -9,7 +9,7 @@ use Drupal\Tests\UnitTestCase;
 /**
  * Tests the orderBy() method of select queries.
  *
- * @group Database
+ * @group sqlsrv
  */
 class OrderByTest extends UnitTestCase
 {

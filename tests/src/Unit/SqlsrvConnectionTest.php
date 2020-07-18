@@ -11,7 +11,7 @@ use Drupal\Tests\UnitTestCase;
  *
  * These tests are not expected to pass on other database drivers.
  *
- * @group Database
+ * @group sqlsrv
  */
 class SqlsrvConnectionTest extends UnitTestCase
 {
