@@ -276,7 +276,8 @@ class Schema extends DatabaseSchema
         }
       }
     }
-    $this->connection->GetConnection()->query_execute($sql);
+    // TODO: Figure out what's going on with this...
+    // $this->connection->GetConnection()->query_execute($sql);
   }
 
   /**
