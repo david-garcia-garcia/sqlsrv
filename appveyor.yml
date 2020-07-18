@@ -23,7 +23,7 @@ install:
   - ps: choco install urlrewrite -y --no-progress 2>&1 > "$Env:TestLogDir\choco_install_urlrewrite.txt"
   - ps: choco install OpenSSL.Light -y --no-progress 2>&1 > "$Env:TestLogDir\choco_install_openssl.txt"
   - ps: choco install sqlserver-odbcdriver -y --no-progress 2>&1 > "$Env:TestLogDir\choco_install_sqlserver-odbcdriver.txt"
-  - ps: Install-Module PsIni
+  - ps: choco install iis-arr -y --no-progress 2>&1 > "$Env:TestLogDir\choco_install_iis-arr.txt"
   - ps: | 
       $WorkingDir = Convert-Path .
       $ZipPath = Join-Path $WorkingDir '\chef_cmdlet.zip'
