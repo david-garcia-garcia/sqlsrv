@@ -135,7 +135,7 @@ test_script:
         ([int]$Env:testCount)++;
         $wc = New-Object 'System.Net.WebClient'
         $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", $path);
-        echo "Completed $Env:testCount tests";
+        Write-Host "Completed $Env:testCount tests";
       }
       Register-ObjectEvent $watcher 'Created' -Action $action
   - ps: |
