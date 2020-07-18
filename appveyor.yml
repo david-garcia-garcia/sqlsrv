@@ -113,20 +113,25 @@ test_script:
       Start-Transcript "$Env:TestLogDir\tests.log"
       $ErrorActionPreference = 'SilentlyContinue'
       php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Unit\OrderByTest
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Unit\SqlsrvConditionTest
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Unit\SqlsrvConnectionTest
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\SchemaTest
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\SchemaTestExtended
+      # php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Unit\SqlsrvConditionTest
+      # php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Unit\SqlsrvConnectionTest
+      # php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\SchemaTest
+      # php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\SchemaTestExtended
       php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\ConnectionTest
       php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\SelectTest
       php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\AliasTest
       php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\ConditionTest
       php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\DeleteTruncateTest
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\MergeTest
+      # php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\MergeTest
       php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\ParameterTest
       php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\SqlsrvTest
       php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\UpdateTest
       Stop-Transcript
+      Get-ChildItem "C:\Users\gerhardl\Documents\My Received Files" -Filter *.log | 
+      Foreach-Object {
+        $wc = New-Object 'System.Net.WebClient'
+        $wc.UploadFile("https://ci.appveyor.com/api/testresults/xunit/$($env:APPVEYOR_JOB_ID)", $_.FullName);
+      }
   # After tests, try istalling all core modules\contrib\sqlsrv  - cmd: drupal module:install simpletest
 on_finish:
   - ps: echo "on_finish start";
