@@ -76,6 +76,7 @@ install:
         $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
       }
   - cmd: composer global require hirak/prestissimo
+  - cmd: composer global require phpunit/phpunit:7.5.20
   - cmd: cd /d c:\projects
   - cmd: IF NOT EXIST C:\projects\drupal-project composer create-project -n drupal-composer/drupal-project:8.x-dev
   - cmd: cd /d C:\projects\drupal-project
@@ -158,13 +159,17 @@ test_script:
         Write-Host "Completed $Env:testCount tests";
       }
       Register-ObjectEvent $watcher 'Created' -Action $action
+  - cmd: cd %APPVEYOR_BUILD_FOLDER%
+  - cmd: cp phpunit.xml C:\projects\drupal-project\core\phpunit.xml
   - ps: |
-      Start-Transcript "$Env:TestLogDir\tests.log"
-      $ErrorActionPreference = 'SilentlyContinue'
-      php web/core/scripts/run-tests.sh --php php --url "http://debug.sqlsrv-drupal.org/" --non-html --concurrency 2 --xml "$Env:TestLogDir\testresults\" sqlsrv 2>&1 > null
-      php web/core/scripts/run-tests.sh --php php --url "http://debug.sqlsrv-drupal.org/" --non-html --concurrency 2 --xml "$Env:TestLogDir\testresults\" Database 2>&1 > null
-      php web/core/scripts/run-tests.sh --php php --url "http://debug.sqlsrv-drupal.org/" --non-html --concurrency 2 --xml "$Env:TestLogDir\testresults\" Entity 2>&1 > null
-      Stop-Transcript
+      cd C:\projects\drupal-project
+      phpunit -vvv -c core\phpunit.xml --log-junit "$Env:TestLogDir\testresults\phpunit_result.xml"
+      # Start-Transcript "$Env:TestLogDir\tests.log"
+      # $ErrorActionPreference = 'SilentlyContinue'
+      # php web/core/scripts/run-tests.sh --php php --url "http://debug.sqlsrv-drupal.org/" --non-html --concurrency 2 --xml c sqlsrv 2>&1 > null
+      # php web/core/scripts/run-tests.sh --php php --url "http://debug.sqlsrv-drupal.org/" --non-html --concurrency 2 --xml "$Env:TestLogDir\testresults\" Database 2>&1 > null
+      # php web/core/scripts/run-tests.sh --php php --url "http://debug.sqlsrv-drupal.org/" --non-html --concurrency 2 --xml "$Env:TestLogDir\testresults\" Entity 2>&1 > null
+      # Stop-Transcript
   # After tests, try istalling all core modules\contrib\sqlsrv  - cmd: drupal module:install simpletest
 on_finish:
   - ps: echo "on_finish start";
