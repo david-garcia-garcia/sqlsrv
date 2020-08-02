@@ -135,7 +135,7 @@ install:
   - cmd: cd /d C:\projects\drupal-project\web
   - cmd: drupal module:install simpletest
   - cmd: drupal module:install sqlsrv
-  - ps: wget "http://sqlsrv.drupal.org/"
+  - ps: wget "http://debug.sqlsrv-drupal.org/"
 build_script:
   - cmd: echo "No build"
 test_script:
@@ -161,9 +161,9 @@ test_script:
   - ps: |
       Start-Transcript "$Env:TestLogDir\tests.log"
       $ErrorActionPreference = 'SilentlyContinue'
-      php web/core/scripts/run-tests.sh --php php --url "http://sqlsrv.drupal.org/" --non-html --concurrency 4 --xml "$Env:TestLogDir\testresults\" sqlsrv 2>&1 > null
-      php web/core/scripts/run-tests.sh --php php --url "http://sqlsrv.drupal.org/" --non-html --concurrency 4 --xml "$Env:TestLogDir\testresults\" Database 2>&1 > null
-      php web/core/scripts/run-tests.sh --php php --url "http://sqlsrv.drupal.org/" --non-html --concurrency 4 --xml "$Env:TestLogDir\testresults\" Entity 2>&1 > null
+      php web/core/scripts/run-tests.sh --php php --url "http://debug.sqlsrv-drupal.org/" --non-html --concurrency 4 --xml "$Env:TestLogDir\testresults\" sqlsrv 2>&1 > null
+      php web/core/scripts/run-tests.sh --php php --url "http://debug.sqlsrv-drupal.org/" --non-html --concurrency 4 --xml "$Env:TestLogDir\testresults\" Database 2>&1 > null
+      php web/core/scripts/run-tests.sh --php php --url "http://debug.sqlsrv-drupal.org/" --non-html --concurrency 4 --xml "$Env:TestLogDir\testresults\" Entity 2>&1 > null
       Stop-Transcript
   # After tests, try istalling all core modules\contrib\sqlsrv  - cmd: drupal module:install simpletest
 on_finish:
