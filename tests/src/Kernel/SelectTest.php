@@ -7,7 +7,7 @@ use Drupal\KernelTests\Core\Database\DatabaseTestBase;
 /**
  * Tests the Select query builder.
  *
- * @group Database
+ * @group sqlsrv
  */
 class SelectTest extends DatabaseTestBase {
 

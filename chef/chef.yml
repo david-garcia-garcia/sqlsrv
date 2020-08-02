@@ -14,7 +14,7 @@ deployers:
     mounts:
       root: { root: true, path: '/web' }
     bindings:
-      public: { hostname: 'sqlsrv.drupal.org', port: 80, interface: 'local', addtohosts: true }
+      public: { hostname: 'debug.sqlsrv-drupal.org', port: 80, interface: 'local', addtohosts: true }
   php:
     type: 'php'
     runtime:
@@ -51,7 +51,6 @@ deployers:
       - {type: 'ini', multivalue: true, 'key':extension, 'value':php_couchbase.dll}
       - {type: 'ini', multivalue: true, 'key':extension, 'value':php_com_dotnet.dll}
       - {type: 'ini', multivalue: true, 'key':extension, 'value':php_blackfire.dll}
-      - {type: 'ini', multivalue: true, 'key':zend_extension, 'value':php_xdebug.dll}
       - {type: 'ini', multivalue: true, 'key':zend_extension, 'value':php_opcache.dll}
       - {type: 'ini', 'key':disable_functions, 'value':'passthru,show_source'}
  # SQLSERVER

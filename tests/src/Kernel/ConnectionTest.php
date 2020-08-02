@@ -8,7 +8,7 @@ use Drupal\KernelTests\Core\Database\DatabaseTestBase;
 /**
  * Tests of the sqlsrv database system.
  *
- * @group Database
+ * @group sqlsrv
  */
 class ConnectionTest extends DatabaseTestBase {
 

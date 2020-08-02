@@ -5,9 +5,9 @@ namespace Drupal\Tests\sqlsrv\Kernel;
 use Drupal\KernelTests\Core\Database\DatabaseTestBase;
 
 /**
- * Tests the MERGE query builder.
+ * Tests MERGE query builder.
  *
- * @group Database
+ * @group sqlsrv
  */
 class MergeTest extends DatabaseTestBase {
 

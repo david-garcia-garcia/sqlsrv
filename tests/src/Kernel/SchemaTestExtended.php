@@ -10,7 +10,7 @@ use Drupal\KernelTests\Core\Database\DatabaseTestBase;
 /**
  * Tests table creation and modification via the schema API.
  *
- * @group Database
+ * @group sqlsrv
  */
 class SchemaTestExtended extends DatabaseTestBase
 {
@@ -332,7 +332,7 @@ class SchemaTestExtended extends DatabaseTestBase
   /**
    * Test db_add_field() and db_change_field() with binary spec.
    */
-  /*public function testAddChangeWithBinary()
+  public function testAddChangeWithBinary()
   {
     $table_spec = array(
       'fields' => array(
@@ -410,7 +410,7 @@ class SchemaTestExtended extends DatabaseTestBase
 
     // Test case insensitive.
     $this->AddChangeWithBinarySearchHelper($results, "CS_AS", "varchar_ascii");
-  }*/
+  }
 
   /**
    * Test numeric field precision.
@@ -573,11 +573,5 @@ class SchemaTestExtended extends DatabaseTestBase
     }
 
     $this->assertTrue($failed, 'Trying to commit a doomed transaction throws an Exception.');
-
-    //$query = db_select('test_table', 't');
-    //$query->addField('t', 'name');
-    //$name = $query->execute()->fetchField();
-    //$this->assertEqual($name, 'DAVID');
-    //unset($transaction);
   }
 }

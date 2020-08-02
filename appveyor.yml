@@ -9,6 +9,19 @@ hosts:
 image:
   - Visual Studio 2019
 install:
+  - ps: |
+       echo "Running on cloud $Env:APPVEYOR_BUILD_WORKER_CLOUD";
+       echo "Running on image $Env:APPVEYOR_BUILD_WORKER_IMAGE";
+       $cpu = Get-WmiObject Win32_ComputerSystem | Select NumberOfProcessors, NumberOfLogicalProcessors, Name, Manufacturer, Model;
+       $clockSpeed = Get-WmiObject -Class Win32_Processor | Select CurrentClockSpeed;
+       $memoryGb = Get-CimInstance Win32_PhysicalMemory | Measure-Object -Property capacity -Sum | Foreach {"{0:N2}" -f ([math]::round(($_.Sum / 1GB),2))};
+       echo "NumberOfLogicalProcessors: $($cpu.NumberOfLogicalProcessors)";
+       echo "NumberOfProcessors: $($cpu.NumberOfProcessors)";
+       echo "System Memory: $memoryGb";
+       echo "CPU clock speed: $($clockSpeed.CurrentClockSpeed)Hz";
+       echo "Computer Name: $($cpu.Name)";
+       echo "Manufacturer: $($cpu.Manufacturer)";
+       echo "Model: $($cpu.Model)";
   - ps: $Env:APPVEYOR_REPO_COMMIT_MESSAGE_FULL = "$env:APPVEYOR_REPO_COMMIT_MESSAGE $env:APPVEYOR_REPO_COMMIT_MESSAGE_EXTENDED".TrimEnd();
   - ps: $Env:TestLogDir = "$Env:BuildDir\TestLogs";
   - ps: $Env:TestLogDirClone = "$Env:BuildDir\TestLogsClone";
@@ -23,7 +36,7 @@ install:
   - ps: choco install urlrewrite -y --no-progress 2>&1 > "$Env:TestLogDir\choco_install_urlrewrite.txt"
   - ps: choco install OpenSSL.Light -y --no-progress 2>&1 > "$Env:TestLogDir\choco_install_openssl.txt"
   - ps: choco install sqlserver-odbcdriver -y --no-progress 2>&1 > "$Env:TestLogDir\choco_install_sqlserver-odbcdriver.txt"
-  - ps: Install-Module PsIni
+  - ps: choco install iis-arr -y --no-progress 2>&1 > "$Env:TestLogDir\choco_install_iis-arr.txt"
   - ps: | 
       $WorkingDir = Convert-Path .
       $ZipPath = Join-Path $WorkingDir '\chef_cmdlet.zip'
@@ -63,11 +76,32 @@ install:
         $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
       }
   - cmd: composer global require hirak/prestissimo
+  - cmd: composer global require phpunit/phpunit:7.5.20
   - cmd: cd /d c:\projects
   - cmd: IF NOT EXIST C:\projects\drupal-project composer create-project -n drupal-composer/drupal-project:8.x-dev
   - cmd: cd /d C:\projects\drupal-project
   - cmd: composer config repositories.drupal composer https://packages.drupal.org/8
   - cmd: composer require drupal/sqlsrv:dev-2.x@dev
+  # This wincache drupal is a performance thing...
+  - cmd: composer require drupal/wincachedrupal:8.0.x-dev
+  # Write to default.settings.php the low level wincache integration
+  - ps: |
+     $value = @'
+     if ($settings['hash_salt']) {
+       $prefix = 'drupal.' . hash('sha256', 'drupal.' . $settings['hash_salt']);
+       $loader = new \Symfony\Component\ClassLoader\WincacheClassLoader($prefix, $class_loader);
+       unset($prefix);
+       $class_loader->unregister();
+       $loader ->register();
+       $class_loader = $loader ;
+     }
+     $settings['file_cache']['default'] = [
+         'class' => '\Drupal\Component\FileCache\FileCache',
+         'cache_backend_class' => \Drupal\wincachedrupal\Cache\WincacheFileCacheBackend::class,
+         'cache_backend_configuration' => [],
+       ];
+     '@
+     Add-Content -Path "C:\projects\drupal-project\web\sites\default\default.settings.php" -Value $value
   # Replace the pulled module with the local files, only for this CI
   - cmd: xcopy /S /I /E /Y %APPVEYOR_BUILD_FOLDER% %cd%\web\modules\contrib\sqlsrv
   # Move the PHP_BIN needed to build the PHP environment
@@ -102,74 +136,43 @@ install:
   - cmd: cd /d C:\projects\drupal-project\web
   - cmd: drupal module:install simpletest
   - cmd: drupal module:install sqlsrv
-  - ps: wget "http://sqlsrv.drupal.org/"
+  - ps: wget "http://debug.sqlsrv-drupal.org/"
 build_script:
   - cmd: echo "No build"
 test_script:
   - cmd: cd /d C:\projects\drupal-project
   - cmd: mkdir %TestLogDir%\testresults\
-  - cmd: echo Tests not run because they need to be updated as they are using deprecated implementations
+  # Register the test watcher
   - ps: |
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Unit\OrderByTest 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) OrderByTest test failed."
+      $watcher = New-Object System.IO.FileSystemWatcher;
+      $watcher.IncludeSubdirectories = $true;
+      $watcher.Path = "$Env:TestLogDir\testresults\";
+      $watcher.EnableRaisingEvents = $true;
+      $Env:testCount = 0;
+      $action =
+      {
+        $path = $event.SourceEventArgs.FullPath
+        $changetype = $event.SourceEventArgs.ChangeType
+        ([int]$Env:testCount)++;
+        $wc = New-Object 'System.Net.WebClient'
+        $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", $path);
+        Write-Host "Completed $Env:testCount tests";
       }
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Unit\SqlsrvConditionTest 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) SqlsrvConditionTest test failed."
-      }
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Unit\SqlsrvConnectionTest 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) SqlsrvConnectionTest test failed."
-      }
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\SchemaTest 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) SchemaTest test failed."
-      }
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\SchemaTestExtended 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) SchemaTestExtended test failed."
-      }
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\ConnectionTest 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) ConnectionTest test failed."
-      }
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\SelectTest 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) SelectTest test failed."
-      }
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\AliasTest 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) AliasTest test failed."
-      }
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\ConditionTest 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) ConditionTest test failed."
-      }
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\DeleteTruncateTest 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) DeleteTruncateTest test failed."
-      }
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\MergeTest 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) MergeTest test failed."
-      }
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\ParameterTest 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) ParameterTest test failed."
-      }
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\SqlsrvTest 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) SqlsrvTest test failed."
-      }
-      php web/core/scripts/run-tests.sh --php php --verbose --url "http://sqlsrv.drupal.org/" --xml "$Env:TestLogDir\testresults\" "Common" --class Drupal\Tests\sqlsrv\Kernel\UpdateTest 2>&1 > "$Env:TestLogDir\tests.log"
-      if ($LASTEXITCODE -ne 0) {
-        echo "($LASTEXITCODE) UpdateTest test failed."
-      }
+      Register-ObjectEvent $watcher 'Created' -Action $action
+  - cmd: cd %APPVEYOR_BUILD_FOLDER%
+  - cmd: cp "phpunit.xml" "C:\projects\drupal-project\web\core\phpunit.xml"
+  - ps: |
+      cd C:\projects\drupal-project\web
+      phpunit -vvv -c core\phpunit.xml --log-junit "$Env:TestLogDir\testresults\phpunit_result.xml"
+      # Start-Transcript "$Env:TestLogDir\tests.log"
+      # $ErrorActionPreference = 'SilentlyContinue'
+      # php web/core/scripts/run-tests.sh --php php --url "http://debug.sqlsrv-drupal.org/" --non-html --concurrency 2 --xml c sqlsrv 2>&1 > null
+      # php web/core/scripts/run-tests.sh --php php --url "http://debug.sqlsrv-drupal.org/" --non-html --concurrency 2 --xml "$Env:TestLogDir\testresults\" Database 2>&1 > null
+      # php web/core/scripts/run-tests.sh --php php --url "http://debug.sqlsrv-drupal.org/" --non-html --concurrency 2 --xml "$Env:TestLogDir\testresults\" Entity 2>&1 > null
+      # Stop-Transcript
   # After tests, try istalling all core modules\contrib\sqlsrv  - cmd: drupal module:install simpletest
 on_finish:
   - ps: echo "on_finish start";
-  - ps: Stop-Transcript
   - cmd: echo Build Version %APPVEYOR_BUILD_VERSION%
   # Add the chocolatey logs
   - cmd: mkdir %TestLogDir%\ChocolateyLogs

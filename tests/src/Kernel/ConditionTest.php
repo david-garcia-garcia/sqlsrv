@@ -9,7 +9,7 @@ use Drupal\KernelTests\Core\Database\DatabaseTestBase;
 /**
  * Test the functions of the custom Condition class.
  *
- * @group Database
+ * @group sqlsrv
  */
 class ConditionTest extends DatabaseTestBase {
 

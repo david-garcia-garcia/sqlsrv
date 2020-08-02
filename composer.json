@@ -14,9 +14,6 @@
       "role": "Contributor"
     }
   ],
-  "autoload": {
-    "psr-4": { "Drupal\\Driver\\Database\\sqlsrv\\": "drivers/lib/Drupal/Driver/Database/sqlsrv" }
-  },
   "autoload-dev": {
     "psr-4": { "Drupal\\Tests\\sqlsrv\\": "tests/src/" }
   },
