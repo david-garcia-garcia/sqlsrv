@@ -81,6 +81,26 @@ install:
   - cmd: cd /d C:\projects\drupal-project
   - cmd: composer config repositories.drupal composer https://packages.drupal.org/8
   - cmd: composer require drupal/sqlsrv:dev-2.x@dev
+  # This wincache drupal is a performance thing...
+  - cmd: composer require drupal/wincachedrupal:8.0.x-dev
+  # Write to default.settings.php the low level wincache integration
+  - ps: |
+     $value = @'
+     if ($settings['hash_salt']) {
+       $prefix = 'drupal.' . hash('sha256', 'drupal.' . $settings['hash_salt']);
+       $loader = new \Symfony\Component\ClassLoader\WincacheClassLoader($prefix, $class_loader);
+       unset($prefix);
+       $class_loader->unregister();
+       $loader ->register();
+       $class_loader = $loader ;
+     }
+     $settings['file_cache']['default'] = [
+         'class' => '\Drupal\Component\FileCache\FileCache',
+         'cache_backend_class' => \Drupal\wincachedrupal\Cache\WincacheFileCacheBackend::class,
+         'cache_backend_configuration' => [],
+       ];
+     '@
+     Add-Content -Path "C:\projects\drupal-project\web\sites\default\default.settings.php" -Value $value
   # Replace the pulled module with the local files, only for this CI
   - cmd: xcopy /S /I /E /Y %APPVEYOR_BUILD_FOLDER% %cd%\web\modules\contrib\sqlsrv
   # Move the PHP_BIN needed to build the PHP environment
