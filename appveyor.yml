@@ -160,7 +160,7 @@ test_script:
       }
       Register-ObjectEvent $watcher 'Created' -Action $action
   - cmd: cd %APPVEYOR_BUILD_FOLDER%
-  - cmd: xcopy "phpunit.xml" "C:\projects\drupal-project\web\core\phpunit.xml" /r /s /i /f
+  - cmd: cp "phpunit.xml" "C:\projects\drupal-project\web\core\phpunit.xml"
   - ps: |
       cd C:\projects\drupal-project\web
       phpunit -vvv -c core\phpunit.xml --log-junit "$Env:TestLogDir\testresults\phpunit_result.xml"
